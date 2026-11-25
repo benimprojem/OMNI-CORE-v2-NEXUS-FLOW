@@ -1480,29 +1480,32 @@ Status: **IN_PROGRESS**. This is an implementation gap; syntax is not being chan
 Status: **VERIFIED — narrow warning slice only**. SEM-005 and OIR remain gated.
 
 
-### Forward Handler relocation — implementation analysis (2026-11-25)
+### Handler relocation — address ownership handoff (2026-11-25)
 
-Current source-of-truth syntax (docs/language/syntax-reference.md, Handler lifecycle section):
-- Source transfer: `(h) _> (hand);`
-- Later target activation: `(hand) -> process(hand);` or `(hand) -> process(hand) { ... }`
-- Target activation is not a new capture; no second `<- expression` is evaluated.
-- Relocation does not jump execution or execute the target block early.
+Normative model clarified:
+- `(h) <- expression` creates a Handler and stores the content's address.
+- `(h) _> (hand)` creates the destination Handler at the relocation site and transfers ownership of the same address to it.
+- The data and physical address never move. `_>` is not a memory copy and does not create a second content instance.
+- After the handoff, the source Handler is invalid and cannot access the allocation through its old identity.
+- `(hand) -> process(hand)` uses the already-created Handler's content as the input to a function or block. `->` is not a second ownership transfer and does not create a Handler.
+- An actual duplicate is explicit: `copy` must be requested; neither `_>` nor `->` performs implicit copying.
+- Pending forward-activation records and branch/loop snapshot integration are not part of this model.
 
-Current implementation gap:
-- Parser already emits AST_RELOCATE for `_>` and AST_NEXUS_PIPE for `->`; ASTNexusFlow.target_block is distinct from the catch-block meaning at the source level (shared legacy union storage).
-- Semantic AST_RELOCATE currently requires both source and target identifiers to resolve to existing Slots. It therefore cannot represent a forward target.
-- Semantic AST_NEXUS_PIPE currently checks left/right expressions generically and does not activate a pending Handler destination.
-- Scope exit releases allocation identities by lexical depth. A forward transfer must detach its allocation from source-scope cleanup and reattach it exactly once at target activation; an unresolved transfer must fail at the owning function boundary.
-- Existing branch snapshots clone allocation state and moved/reference Slot state, but do not yet model pending Handler transfers. A simple mutable global pending list would be unsound when activation occurs conditionally.
+Implementation slice committed (CI not yet verified):
+- [x] Semantic creates a destination Slot when the relocation target identifier does not yet exist, using the source type.
+- [x] Existing allocation identity/base ownership metadata is handed to the destination Slot; the allocation storage itself is not copied.
+- [x] Existing source invalidation, alias/lifetime checks and unused-destination tracking remain in the relocation path.
+- [x] Added regressions for a newly-created destination and a relocation chain to another newly-created destination.
+- [x] Updated the normative Handler lifecycle text to remove deferred forward activation semantics.
+- [ ] Enforce the required parenthesized Handler syntax in the Parser/AST; current AST grouping does not yet prove that the destination was written as `(hand)`.
+- [ ] Define and test duplicate destination-name/shadowing behavior for Handler declarations.
+- [ ] Add negative tests for source use-after-move, target collision, incompatible types and allocation lifetime across nested scopes using the new parenthesized form.
+- [ ] Verify the exact branch head with the full Windows/Linux/macOS/ASan/UBSan/Valgrind workflow matrix.
 
-Implementation gates (not yet complete):
-- [ ] Introduce an explicit pending Handler-transfer record with target name, type, origin, source function identity, allocation identity/base status, and unused-value tracking.
-- [ ] Make pending-transfer state clone/restore/merge with Semantic control-flow snapshots; reject ambiguous path merges rather than guessing.
-- [ ] At AST_RELOCATE, validate and move source ownership without resolving a not-yet-declared destination; prevent source use immediately.
-- [ ] At matching AST_NEXUS_PIPE, activate the destination Slot at that lexical point, transfer ownership metadata, and suppress treating the selector operand itself as a value read.
-- [ ] Preserve allocation identity across source scope exit without allowing source cleanup; bind it to the destination scope on activation.
-- [ ] Diagnose duplicate targets, missing targets at function exit, wrong execution frame, target ownership conflicts, and use-after-move with exact source locations.
-- [ ] Add positive/negative Parser + Semantic tests for call target, target block, nested scope, chains, duplicate/missing target, branch/loop paths, and cleanup.
-- [ ] Verify full Windows/Linux/macOS/ASan/UBSan/Valgrind matrix before marking complete.
+Commits:
+- Semantic implementation: `bf839ad5418d3da3a1aee5255c44bd5f9d7404ae`
+- Semantic regressions: `7cc1fc997c087bbb9d0a24a993ac8e86b1019cf7`
+- Initial syntax clarification: `623b09f1fdc1b08741d286805168c67769cc0088`
+- Removal of obsolete forward-activation text: `3548c717677faa135a5f8e763ff58f90a9071b3d`
 
-Status: **ANALYSIS COMPLETE — implementation not started**. Do not mark Handler relocation or SEM-005 complete from the earlier unused-destination warning work.
+Status: **IMPLEMENTATION IN PROGRESS — NOT CI VERIFIED**. Handler relocation and SEM-005 remain open; OIR remains gated.
