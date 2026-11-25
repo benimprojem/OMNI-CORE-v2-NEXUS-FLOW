@@ -4607,6 +4607,7 @@ static uint64_t semantic_expression_allocation_identity_depth(
     Slot* slot;
     if (!ctx || !expression || depth > 64u) return 0u;
     if (expression->type == AST_IDENTIFIER) {
+        if (address_context == 1) return 0u; /* &identifier addresses the handle variable itself. */
         slot = find_slot(ctx, ((ASTIdentifier*)expression)->name);
         return slot ? slot->allocation_identity : 0u;
     }
@@ -4619,7 +4620,7 @@ static uint64_t semantic_expression_allocation_identity_depth(
             ASTNode* argument = semantic_intrinsic_argument_value(
                 ((ASTCall*)expression)->args);
             return semantic_expression_allocation_identity_depth(
-                ctx, argument, depth + 1u, 1);
+                ctx, argument, depth + 1u, 2);
         }
         case AST_FREE:
         case AST_LEN:
@@ -4636,7 +4637,7 @@ static uint64_t semantic_expression_allocation_identity_depth(
                 (address_context ||
                  semantic_expression_is_pointer_like(ctx, expression)))
                 return semantic_expression_allocation_identity_depth(
-                    ctx, unary->operand, depth + 1u, address_context);
+                    ctx, unary->operand, depth + 1u, 0);
             return 0u;
         }
         case AST_MEMBER_ACCESS:
@@ -4644,14 +4645,14 @@ static uint64_t semantic_expression_allocation_identity_depth(
                 semantic_expression_is_pointer_like(ctx, expression))
                 return semantic_expression_allocation_identity_depth(
                     ctx, ((ASTMemberAccess*)expression)->object,
-                    depth + 1u, address_context);
+                    depth + 1u, address_context ? 2 : 0);
             return 0u;
         case AST_INDEX_ACCESS:
             if (address_context ||
                 semantic_expression_is_pointer_like(ctx, expression))
                 return semantic_expression_allocation_identity_depth(
                     ctx, ((ASTIndexAccess*)expression)->target,
-                    depth + 1u, address_context);
+                    depth + 1u, address_context ? 2 : 0);
             return 0u;
         case AST_CAST:
             if (semantic_expression_is_pointer_like(ctx, expression))
