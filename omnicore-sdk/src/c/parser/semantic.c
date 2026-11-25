@@ -10794,6 +10794,7 @@ static void semantic_check_node(
         case AST_EXTERN_DECL: {
             ASTFuncDecl* func = (ASTFuncDecl*)node;
             Slot* function_slot = NULL;
+            Slot* previous_function_slot = ctx->current_function_slot;
             const char* function_name = func->name;
             int return_type_valid = 1;
             int errors_before_return_type = ctx->error_count;
@@ -11114,6 +11115,7 @@ static void semantic_check_node(
                     function_entry_state_captured =
                         semantic_reference_init_snapshot_capture(
                             ctx, &function_entry_state);
+                    ctx->current_function_slot = function_slot;
                     ++ctx->function_depth;
                     semantic_check(ctx, func->body);
                     /* Function-local allocations cannot outlive the call frame,
@@ -11123,6 +11125,7 @@ static void semantic_check_node(
                     if (ctx->halted_function_depth == (uint32_t)ctx->function_depth)
                         ctx->halted_function_depth = UINT32_MAX;
                     --ctx->function_depth;
+                    ctx->current_function_slot = previous_function_slot;
                     if (function_entry_state_captured)
                         semantic_reference_init_snapshot_restore(
                             ctx, &function_entry_state);
