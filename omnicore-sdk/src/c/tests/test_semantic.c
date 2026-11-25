@@ -782,6 +782,12 @@ static int check_thread_api_is_module_call(void) {
             "(worker)>{ (h) <- copy(x, x); } }", 1) &&
         check_source(
             "f:main() { (worker)>{ } (worker)>{ } }", 1) &&
+        check_source(
+            "f:main() { v:outside = area(16); "
+            "(worker)>{ (h) <- copy(outside); } spawn(worker); }", 1) &&
+        check_source(
+            "f:main() { v:owner!i32 = 1; &outside!i32 = &owner; "
+            "(worker)>{ (h) <- copy(outside); } spawn(worker); }", 1) &&
         check_thread_block_value_captures();
 }
 
