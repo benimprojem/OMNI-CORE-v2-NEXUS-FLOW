@@ -4231,6 +4231,9 @@ static int check_intrinsic_semantics(void) {
     const char* allocation_offset_alias_use_after_free =
         "f:main() { v:a = area(64); v:p = addr(a); v:q = p + 4; "
         "free(a); echo(q); }";
+    const char* allocation_interior_address_cannot_be_freed =
+        "f:main() { v:a = area(64); v:p = addr(a); v:q = p + 4; "
+        "free(q); echo(a); free(a); }";
     const char* allocation_pointer_difference_is_plain_value =
         "f:main() { v:a = area(64); v:p = addr(a); v:q = p + 4; "
         "v:distance = q - p; free(a); echo(distance); }";
@@ -4316,6 +4319,7 @@ static int check_intrinsic_semantics(void) {
         check_source(allocation_handle_reference_direct_dereference_after_free, 1) &&
         check_source(allocation_reborrow_deref_alias_after_free, 1) &&
         check_source(allocation_offset_alias_use_after_free, 1) &&
+        check_source(allocation_interior_address_cannot_be_freed, 1) &&
         check_source(allocation_pointer_difference_is_plain_value, 0) &&
         check_source(allocation_address_unsupported_transform_rejected, 1) &&
         check_source(allocation_return_escape_rejected, 1) &&
