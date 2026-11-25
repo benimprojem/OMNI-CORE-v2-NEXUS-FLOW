@@ -2308,6 +2308,7 @@ Semantic resolves the qualifier to an enum declaration and the member to one of 
 - `addr(handle)` derives an address into the allocation and preserves its allocation identity through pointer copies and address-offset arithmetic. By contrast, unary `&identifier` takes the address of the variable that stores the handle; it is not itself an address into the allocation.
 - `free(handle)` ends that identity's lifetime. Every alias carrying that identity becomes invalid immediately; later reads or uses must be rejected by Semantic.
 - `free()` accepts only a handle/address whose active allocation identity is known. An arbitrary integer address, a pointer to an ordinary variable, or an unknown-provenance pointer is not sufficient evidence that the address belongs to a releasable allocation.
+- `free()` also requires the allocation's base handle/address. Derived interior pointers and non-zero address offsets retain lifetime identity for access checks but cannot be used to release the allocation.
 - If the allocator later reuses the same numeric address, the new allocation receives a fresh identity. The new handle is valid, but no old alias is revived by address equality.
 - `?;` and `}?;` terminate the current execution context and invalidate its active allocation identities. Code after the terminating Halt is unreachable.
 - An allocation identity is never reused during one SemanticContext. Identity-counter exhaustion or metadata-allocation failure must fail closed.
