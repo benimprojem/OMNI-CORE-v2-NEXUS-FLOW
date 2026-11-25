@@ -350,7 +350,7 @@ static void report_issue(SemanticContext* ctx, ASTNode* node, ErrorCode code, co
         ctx->error_head = err;
         ctx->error_tail = err;
     }
-    if (ctx->error_count < INT_MAX) ++ctx->error_count;
+    if (!is_warning && ctx->error_count < INT_MAX) ++ctx->error_count;
 }
 
 static void report_error(SemanticContext* ctx, ASTNode* node, ErrorCode code, const char* msg) {
@@ -1285,6 +1285,23 @@ static void enter_scope(SemanticContext* ctx, ASTNode* owner_node) {
 
 static void exit_scope(SemanticContext* ctx) {
     if (!ctx) return;
+
+    /* A successful ownership transfer that reaches scope exit without any
+       value read is suspicious but not a semantic error. Point at the transfer. */
+    {
+        Slot* current;
+        for (current = ctx->head; current; current = current->next) {
+            if (current->depth == ctx->current_depth &&
+                current->relocation_origin && !current->relocation_used) {
+                report_issue(ctx, current->relocation_origin,
+                    ERR_SEMANTIC_TYPE_MISMATCH,
+                    "Relocated value is never used by its new owner.",
+                    "Read or otherwise consume the destination value, or remove the unnecessary relocation.",
+                    "Read or otherwise consume the destination value, or remove the unnecessary relocation.",
+                    0, 1);
+            }
+        }
+    }
 
     /* Release every borrow in this scope before freeing any owner Slot.
        Declaration order must not affect cleanup safety. */
@@ -9062,6 +9079,9 @@ static void semantic_check_node(
                         SEMANTIC_RESULT_VALUE_RVALUE);
                 }
             } else {
+                if (ctx->assignment_target_depth == 0u &&
+                    resolved->relocation_origin)
+                    resolved->relocation_used = 1u;
                 semantic_record_annotation(
                     ctx, node, resolved, resolved->type_name,
                     resolved->kind == SLOT_FUNC
@@ -10306,6 +10326,11 @@ static void semantic_check_node(
                     report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH,
                         "Relocation destination already owns a different active allocation; release or relocate it first.");
                 } else {
+                    target_slot->relocation_origin = source_slot->relocation_origin
+                        ? source_slot->relocation_origin : node;
+                    target_slot->relocation_used = source_slot->relocation_used;
+                    source_slot->relocation_origin = NULL;
+                    source_slot->relocation_used = 0u;
                     source_slot->is_moved=1;
                     source_slot->allocation_identity = 0u;
                     source_slot->allocation_is_base = 0u;
