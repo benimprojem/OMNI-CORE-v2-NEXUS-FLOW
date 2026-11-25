@@ -675,7 +675,7 @@ OIR opcode karşılıkları `bit.shl` ve `bit.shr` olarak tanımlanmıştır. Ba
 - **Lexical scope:** Her `(h)` yalnızca tanımlandığı bloğun üyesidir. Başka bir bloktan doğrudan adla erişilemez; dışarı sızan masa referansı geçersizdir.
 - **Lifetime:** Masa, sahibi olduğu blok aktivasyonundan uzun yaşayamaz. Blok normal yoldan terk edildiğinde hâlâ o bloğa ait kaynaklar otomatik cleanup kapsamındadır.
 - **Ownership:** Her dolu masa/kaynak için tek sahip bulunur. Aynı kaynak iki masanın eşzamanlı sahibi olamaz.
-- **Forward Relocate:** `(h1) _> (h2)` veriyi ve sahipliği kaynak masadan, kodun ilerleyen bölümünde ve başka bir kapsamda tanımlanacak hedef masaya yönlendirir. Hedef masa `_>` noktasında henüz oluşturulmuş olmak zorunda değildir; kendi kaynak kod konumuna gelindiğinde `(h2) -> ...` akış/işlem bildirimiyle etkinleşir ve yönlendirilmiş sahipliği devralır. `_>` yürütme sırasını değiştirmez, hedef bloğa atlamaz ve hedef kapsamı erkenden çalıştırmaz. İşlem kopyalama değildir; başarılı yönlendirmeden sonra kaynak masa aynı kaynağı kullanamaz. Hedefin başka bir etkin sahipliği varsa çakışma Semantic hatasıdır.
+- **Relocate / ownership handoff:** `(h) _> (hand)` kaynak masanın tuttuğu adresin sahipliğini, aynı noktada oluşturulan yeni `(hand)` Handler'ına devreder. İçerik ve fiziksel bellek adresi değişmez; veri taşınmaz ve örtük kopyalama yapılmaz. Devir tamamlandığında `h` eski sahip olarak geçersizleşir; aynı allocation kimliği `hand` tarafından sahiplenilir. Hedef Handler önceden tanımlanmış veya ileride etkinleşecek bir masa değildir: parantezli hedef, `_>` konumundaki zorunlu masa oluşturma bildirimidir. Hedef adı zaten etkin bir Handler/sahip tarafından kullanılıyorsa çakışma Semantic hatasıdır.
 - **Borrow:** Başka bir bloktan gelen ödünç kaynak, açık sahiplik devri olmadan iç blok tarafından serbest bırakılamaz veya sahiplenilemez.
 - **Use-after-move / use-after-halt:** Taşınmış ya da sonlandırılmış masa üzerinden sonraki erişim Semantic hatasıdır.
 
@@ -690,24 +690,18 @@ Yeni kaynak üretilecekse masa `(h) <- expression` ile oluşturulur. Sağ taraft
 f:main() {
     (h) <- acquire_resource();
 
-    # Veri burada hazır; ancak hedef kapsamın öncesinde yapılması
-    # gereken işler henüz tamamlanmadı.
+    # Adres sahipliği hand'e geçer; içerik aynı yerde kalır.
     (h) _> (hand);
 
     prepare_environment();
     validate_configuration();
 
-    {
-        # Hedef masa kendi gerçek kod konumunda etkinleşir.
-        # Önceden yönlendirilmiş kaynak hand tarafından devralınır.
-        (hand) -> f:(hand) {
-            process(hand);
-        }
-    }
+    # hand mevcut içeriğiyle işleme girer.
+    (hand) -> process(hand);
 }
 ```
 
-`_>` satırı `prepare_environment()` veya hedef bloğu erkenden çalıştırmaz. Kod normal sırayla ilerler; yalnızca veri ve sahiplik, ilerideki `(hand)` masasına yönlendirilmiş olur. Hedef noktadaki `(hand) -> ...` akışı, yönlendirilmiş masayı seçilen işlem hedefine aktarır; hedefin lambda olması zorunlu değildir ve yeni bir kaynak ifadesi değerlendirilmez. Çağrıya bağlı `{ ... }` bloğu normal işlem gövdesidir; `?->` hata yakalama bloğuyla aynı anlamı taşımaz.
+`_>` satırında `(hand)` Handler'ı oluşturulur ve adresin sahipliği devredilir. Kod normal sırayla ilerler; içerik aynı bellek adresinde kalır. Daha sonraki `(hand) -> ...` ifadesi bu mevcut içeriği seçilen fonksiyon veya bloğa girdi yapar; yeni kaynak ifadesi değerlendirilmez. Çağrıya bağlı `{ ... }` bloğu normal işlem gövdesidir; `?->` hata yakalama bloğuyla aynı anlamı taşımaz.
 
 ### 4.1.2 Halt: Etkin Kaynakların Toplu Sonlandırılması
 
