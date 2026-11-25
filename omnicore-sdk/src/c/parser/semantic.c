@@ -10478,6 +10478,21 @@ static void semantic_check_node(
             if (ret->operand) semantic_check(ctx, ret->operand);
 
             if (ret->operand) {
+                uint64_t returned_allocation_identity =
+                    semantic_expression_allocation_identity(ctx, ret->operand);
+                ActiveAllocation* returned_allocation =
+                    semantic_find_active_allocation(
+                        ctx, returned_allocation_identity);
+                if (returned_allocation &&
+                    returned_allocation->function_depth ==
+                        (uint32_t)ctx->function_depth) {
+                    report_issue(ctx, ret->operand,
+                        ERR_SEMANTIC_TYPE_MISMATCH,
+                        "A function cannot return an allocation handle or pointer derived from an allocation owned by its own execution frame.",
+                        "Allocate in a longer-lived owner and pass a verified reference, or transfer ownership through an explicit supported ownership contract.",
+                        "Allocate in a longer-lived owner and pass a verified reference, or transfer ownership through an explicit supported ownership contract.",
+                        0, 0);
+                }
                 const char* returned_type = get_expr_type(ctx, ret->operand);
                 if (semantic_type_is_any(ctx, ctx->current_func_return_type) &&
                     semantic_expression_contains_safe_reference(
