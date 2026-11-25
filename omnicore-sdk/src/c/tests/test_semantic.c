@@ -125,6 +125,22 @@ static int check_source(const char* source, int expected_errors) {
 }
 
 
+static int check_relocation_destination_shadowing(void) {
+    const char* same_scope_collision =
+        "f:main() { v:src!i32 = 1; v:hand!i32 = 2; "
+        "v:moved = src _> (hand); }";
+    const char* outer_binding_shadowed =
+        "f:main() { v:hand!i32 = 7; "
+        "{ v:src!i32 = 1; v:moved = src _> (hand); echo(hand); } "
+        "echo(hand); }";
+    const char* same_name_move_through_shadow =
+        "f:main() { v:src!i32 = 1; "
+        "{ v:moved = src _> (src); } }";
+    return check_source(same_scope_collision, 1) &&
+        check_source(outer_binding_shadowed, 0) &&
+        check_source(same_name_move_through_shadow, 1);
+}
+
 static int check_relocation_unused_warning(void) {
     const char* unused =
         "f:main() { v:src!i32 = 1; v:dst!i32 = 0; v:moved = src _> dst; }";
@@ -4827,6 +4843,10 @@ int main(int argc, char** argv) {
     }
     if (!check_relocation_unused_warning()) {
         fprintf(stderr, "Relocation unused-destination warning checks failed.\\n");
+        return 1;
+    }
+    if (!check_relocation_destination_shadowing()) {
+        fprintf(stderr, "Relocation destination shadowing checks failed.\\n");
         return 1;
     }
     if (!check_handler_capture_semantics()) {
