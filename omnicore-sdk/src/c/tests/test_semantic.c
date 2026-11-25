@@ -134,7 +134,7 @@ static int check_relocation_borrow_state_transfer(void) {
         "owner _> (hand); v:value!i32 = *reference; }";
     const char* mutable_reference_binding_move =
         "f:main() { v:owner!i32 = 1; &mut reference!i32 = &mut owner; "
-        "v:moved = reference _> (hand); *hand = 2; v:value!i32 = *hand; }";
+        "reference _> (hand); *hand = 2; v:value!i32 = *hand; }";
     const char* existing_destination_borrow_is_replaced =
         "f:main() { v:first!i32 = 1; v:second!i32 = 2; "
         "&source!i32 = &first; &target!i32 = &second; "
