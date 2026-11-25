@@ -4808,6 +4808,10 @@ static int semantic_expression_allocation_is_base_depth(
     if (expression->type == AST_ADDR) {
         ASTNode* argument = semantic_intrinsic_argument_value(
             ((ASTCall*)expression)->args);
+        if (argument && argument->type == AST_UNARY_EXPR &&
+            ((ASTUnaryExpr*)argument)->op == TOKEN_STAR)
+            return semantic_expression_allocation_is_base_depth(
+                ctx, ((ASTUnaryExpr*)argument)->operand, depth + 1u);
         return semantic_expression_allocation_is_base_depth(
             ctx, argument, depth + 1u);
     }
@@ -4830,8 +4834,11 @@ static int semantic_expression_allocation_is_base_depth(
             uint64_t identity = 0u;
             slot = find_slot(ctx, ((ASTIdentifier*)unary->operand)->name);
             if (!slot) return 0;
-            if (slot->allocation_identity != 0u)
-                return slot->allocation_is_base;
+            /* Dereferencing an allocation pointer loads a value from memory;
+               that value is not automatically the allocation's base handle. */
+            if (slot->allocation_identity != 0u &&
+                !slot->borrow_origin && !slot->borrow_origins)
+                return 0;
             if (slot->borrow_origin &&
                 slot->borrow_origin->allocation_identity != 0u)
                 identity = slot->borrow_origin->allocation_identity;
