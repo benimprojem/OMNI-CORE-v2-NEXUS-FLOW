@@ -45,7 +45,7 @@ typedef struct BorrowOrigin {
 } BorrowOrigin;
 
 typedef struct SemanticFunctionAllocationEffect {
-    uint32_t target_symbol_id; /* Outer/global handle binding freed by the function. */
+    uint64_t target_slot_identity; /* Stable SemanticContext-local identity of the outer binding. */
     const ASTNode* free_origin; /* Borrowed source location of the free operation. */
     struct SemanticFunctionAllocationEffect* next;
 } SemanticFunctionAllocationEffect;
@@ -83,6 +83,7 @@ struct Slot {
     FieldInfo* fields;    // Struct alanları veya Enum varyantları
     int is_packed;        // Struct packed durumu
     uint32_t symbol_id;
+    uint64_t semantic_identity; /* Stable Slot identity even when durable result symbols are disabled. */
     uint32_t scope_id;
     const ASTNode* group_owner; /* Non-owning Group declaration that owns private nominal types. */
     const ASTNode* fast_exec_owner; /* Non-owning FASTEXEC block that owns ASM labels. */
@@ -178,6 +179,7 @@ typedef struct {
     ThreadBlockEntry* active_thread_block;
     uint32_t thread_capture_copy_depth;
     uint64_t next_borrow_identity; /* Monotonic SemanticContext-local borrow identity source. */
+    uint64_t next_slot_identity; /* Monotonic identity source for live Semantic Slots. */
     ActiveAllocation* active_allocations; /* Sole source of truth for live allocation identities. */
     uint64_t next_allocation_identity; /* Monotonic; overflow must fail closed. */
 
