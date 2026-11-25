@@ -4205,6 +4205,11 @@ static int check_intrinsic_semantics(void) {
     const char* allocation_rebinding_same_slot_does_not_revive_alias =
         "f:main() { v:a = area(64); v:old = a; free(a); "
         "a = area(64); echo(old); echo(a); free(a); }";
+    const char* allocation_rebinding_released_slot_is_valid =
+        "f:main() { v:a = area(64); free(a); "
+        "a = area(32); echo(a); free(a); }";
+    const char* allocation_write_through_stale_pointer_rejected =
+        "f:main() { v:a = area(64); v:p = addr(a); free(a); poke(p, 1); }";
     const char* allocation_address_alias_use_after_free =
         "f:main() { v:a = area(64); v:p = addr(a); free(a); echo(p); }";
     const char* allocation_pointer_copy_use_after_free =
@@ -4286,6 +4291,8 @@ static int check_intrinsic_semantics(void) {
         check_source(allocation_new_identity_after_reuse, 0) &&
         check_source(allocation_old_alias_stays_invalid, 1) &&
         check_source(allocation_rebinding_same_slot_does_not_revive_alias, 1) &&
+        check_source(allocation_rebinding_released_slot_is_valid, 0) &&
+        check_source(allocation_write_through_stale_pointer_rejected, 1) &&
         check_source(allocation_address_alias_use_after_free, 1) &&
         check_source(allocation_pointer_copy_use_after_free, 1) &&
         check_source(allocation_handle_reference_dereference_use_after_free, 1) &&
