@@ -4119,6 +4119,30 @@ static int check_irq_reg_semantics(void) {
         check_source(invalid_reg_value, 1);
 }
 
+static int check_function_allocation_cleanup(void) {
+    const char* source = "f:local() { v:a = area(64); }";
+    ParserContext* parser = parser_init_source(
+        "allocation-frame.nxf", (const uint8_t*)source, strlen(source));
+    SemanticContext semantic;
+    int ok;
+    if (!parser) return 0;
+    if (parser_run(parser) != 0 || !parser->ast_root) {
+        parser_destroy(parser);
+        return 0;
+    }
+    semantic_init(&semantic, "allocation-frame.nxf", NULL);
+    semantic_check(&semantic, (ASTNode*)parser->ast_root);
+    ok = semantic.error_count == 0 && semantic.active_allocations == NULL;
+    if (!ok) {
+        fprintf(stderr,
+            "Function-local allocation registry was not empty after normal function exit. errors=%d active=%p\\n",
+            semantic.error_count, (void*)semantic.active_allocations);
+    }
+    semantic_destroy(&semantic);
+    parser_destroy(parser);
+    return ok;
+}
+
 static int check_intrinsic_semantics(void) {
     const char* valid_memory =
         "f:main() { v:x!i32 = 1; v:p = addr(x); v:n!u64 = len(\"abc\"); "
