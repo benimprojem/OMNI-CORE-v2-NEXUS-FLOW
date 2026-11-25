@@ -136,9 +136,21 @@ static int check_relocation_destination_shadowing(void) {
     const char* same_name_move_through_shadow =
         "f:main() { v:src!i32 = 1; "
         "{ v:moved = src _> (src); } }";
+    const char* shared_reference_binding_move =
+        "f:main() { v:owner!i32 = 1; &reference!i32 = &owner; "
+        "v:moved = reference _> (hand); v:value!i32 = *hand; }";
+    const char* shared_borrowed_owner_move =
+        "f:main() { v:owner!i32 = 1; &reference!i32 = &owner; "
+        "v:moved = owner _> (hand); v:value!i32 = *reference; }";
+    const char* mutable_reference_binding_move =
+        "f:main() { v:owner!i32 = 1; &mut reference!i32 = &mut owner; "
+        "v:moved = reference _> (hand); *hand = 2; v:value!i32 = *hand; }";
     return check_source(same_scope_collision, 1) &&
         check_source(outer_binding_shadowed, 0) &&
-        check_source(same_name_move_through_shadow, 1);
+        check_source(same_name_move_through_shadow, 1) &&
+        check_source(shared_reference_binding_move, 0) &&
+        check_source(shared_borrowed_owner_move, 0) &&
+        check_source(mutable_reference_binding_move, 0);
 }
 
 static int check_relocation_unused_warning(void) {
