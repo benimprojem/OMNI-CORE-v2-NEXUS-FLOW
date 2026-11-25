@@ -7813,14 +7813,11 @@ static int semantic_bind_returned_call_reference(
             return 1;
         }
         owner = source->borrowed_from;
-        if (source->borrow_path) {
-            size_t source_path_length = strlen(source->borrow_path);
-            borrow_path = (char*)malloc(source_path_length + 1u);
-            if (borrow_path)
-                memcpy(borrow_path, source->borrow_path, source_path_length + 1u);
-        } else {
-            borrow_path = (char*)malloc(1u);
-            if (borrow_path) borrow_path[0] = '\0';
+        borrow_path = semantic_duplicate(
+            ctx, source->borrow_path ? source->borrow_path : "");
+        if (!borrow_path) {
+            semantic_set_result_error(ctx, SEMANTIC_RESULT_OUT_OF_MEMORY);
+            return 1;
         }
         is_mutable = source->borrow_kind == 2u;
     } else if (argument_value->type == AST_UNARY_EXPR) {
