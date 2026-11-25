@@ -2372,7 +2372,7 @@ static int check_reference_initializer_provenance_semantics(void) {
         "&copy!i32 = identity(&owner); "
         "&mut edit!i32 = &mut owner; }";
     const char* returned_reference_binding_preserves_origin =
-        "f:identity(value!&i32)!&i32 { ret value; } "
+        "f:identity(value!&i32)!&i32 { &local!i32 = value; ret local; } "
         "f:main() { v:owner!i32 = 1; &reference!i32 = &owner; "
         "&copy!i32 = identity(reference); "
         "&mut edit!i32 = &mut owner; }";
