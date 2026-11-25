@@ -7496,6 +7496,15 @@ static int semantic_register_thread_capture(
         !(block = ctx->active_thread_block)) return 1;
     if (source->kind != SLOT_VAR ||
         (uint32_t)source->depth > block->capture_base_depth) return 1;
+    if (semantic_type_contains_safe_reference(
+            ctx, source->type_name, 0u) ||
+        source->allocation_identity != 0u ||
+        semantic_type_contains_allocation_handle(
+            ctx, source->type_name, 0u)) {
+        report_error(ctx, use_node, ERR_SEMANTIC_TYPE_MISMATCH,
+            "Thread copy() cannot capture a safe reference or allocation-derived handle: copying the handle value does not extend or transfer the backing allocation lifetime.");
+        return 0;
+    }
     if (ctx->thread_capture_copy_depth == 0u) {
         char message[256];
         (void)snprintf(message, sizeof(message),
