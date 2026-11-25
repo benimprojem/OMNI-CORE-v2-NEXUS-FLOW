@@ -10532,7 +10532,6 @@ static void semantic_check_node(
             ASTRelocate* relocate=(ASTRelocate*)node;
             Slot* source_slot=NULL;
             Slot* target_slot=NULL;
-            int target_collision=0;
             const char* source_type;
             const char* target_type;
             ++ctx->relocation_source_depth;
@@ -10542,36 +10541,14 @@ static void semantic_check_node(
             if(relocate->source && relocate->source->type==AST_IDENTIFIER)
                 source_slot=find_slot(ctx,((ASTIdentifier*)relocate->source)->name);
             if(relocate->target && relocate->target->type==AST_IDENTIFIER &&
+               !find_slot(ctx,((ASTIdentifier*)relocate->target)->name) &&
                source_type) {
-                const char* target_name =
-                    ((ASTIdentifier*)relocate->target)->name;
-                const char* source_name =
-                    relocate->source && relocate->source->type==AST_IDENTIFIER
-                        ? ((ASTIdentifier*)relocate->source)->name : NULL;
-                Slot* existing_target = target_name
-                    ? find_slot(ctx, target_name) : NULL;
-                if (source_name && target_name &&
-                    strcmp(source_name, target_name) == 0) {
-                    target_collision = 1;
-                    report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH,
-                        "Relocation source and destination names must differ.");
-                } else if (existing_target &&
-                           existing_target->depth == ctx->current_depth &&
-                           existing_target->function_depth == ctx->function_depth) {
-                    target_slot = existing_target;
-                    target_collision = 1;
-                    report_error(ctx, relocate->target,
-                        ERR_SEMANTIC_REDEFINED,
-                        "Relocation destination Handler already exists in this lexical scope.");
-                } else {
-                    /* A new Handler shadows an outer binding when needed;
-                       it is created at this exact source position and takes
-                       the existing address identity without copying data. */
-                    target_slot = add_slot(
-                        ctx, target_name, SLOT_VAR, 0, source_type,
-                        relocate->target, 1, 0, 0, 0u);
-                    if (!target_slot) target_collision = 1;
-                }
+                /* A parenthesized relocation destination is a Handler
+                   declaration at this exact source position. It receives
+                   the existing address identity; no data is copied. */
+                target_slot=add_slot(
+                    ctx,((ASTIdentifier*)relocate->target)->name,
+                    SLOT_VAR,0,source_type,relocate->target,1,0,0,0u);
             }
             ++ctx->assignment_target_depth;
             ++ctx->allocation_write_target_depth;
@@ -10585,8 +10562,6 @@ static void semantic_check_node(
                !relocate->target || relocate->target->type!=AST_IDENTIFIER) {
                 report_error(ctx,node,ERR_SEMANTIC_TYPE_MISMATCH,
                     "Relocation requires identifier source and destination operands.");
-            } else if(target_collision) {
-                /* The collision/self-move diagnostic was emitted at resolution. */
             } else if(!source_slot || !target_slot) {
                 /* Identifier resolution already reports the undefined name. */
             } else if(source_slot==target_slot) {
