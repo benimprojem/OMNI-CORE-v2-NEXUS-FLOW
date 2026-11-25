@@ -10248,15 +10248,25 @@ static void semantic_check_node(
             ++ctx->relocation_source_depth;
             semantic_check(ctx,relocate->source);
             --ctx->relocation_source_depth;
+            source_type=get_expr_type(ctx,relocate->source);
+            if(relocate->source && relocate->source->type==AST_IDENTIFIER)
+                source_slot=find_slot(ctx,((ASTIdentifier*)relocate->source)->name);
+            if(relocate->target && relocate->target->type==AST_IDENTIFIER &&
+               !find_slot(ctx,((ASTIdentifier*)relocate->target)->name) &&
+               source_type) {
+                /* A parenthesized relocation destination is a Handler
+                   declaration at this exact source position. It receives
+                   the existing address identity; no data is copied. */
+                target_slot=add_slot(
+                    ctx,((ASTIdentifier*)relocate->target)->name,
+                    SLOT_VAR,0,source_type,relocate->target,1,0,0,0u);
+            }
             ++ctx->assignment_target_depth;
             ++ctx->allocation_write_target_depth;
             semantic_check(ctx,relocate->target);
             --ctx->allocation_write_target_depth;
             --ctx->assignment_target_depth;
-            source_type=get_expr_type(ctx,relocate->source);
             target_type=get_expr_type(ctx,relocate->target);
-            if(relocate->source && relocate->source->type==AST_IDENTIFIER)
-                source_slot=find_slot(ctx,((ASTIdentifier*)relocate->source)->name);
             if(relocate->target && relocate->target->type==AST_IDENTIFIER)
                 target_slot=find_slot(ctx,((ASTIdentifier*)relocate->target)->name);
             if(!relocate->source || relocate->source->type!=AST_IDENTIFIER ||
