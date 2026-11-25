@@ -44,6 +44,12 @@ typedef struct BorrowOrigin {
     struct BorrowOrigin* next;
 } BorrowOrigin;
 
+typedef struct SemanticFunctionAllocationEffect {
+    uint32_t target_symbol_id; /* Outer/global handle binding freed by the function. */
+    const ASTNode* free_origin; /* Borrowed source location of the free operation. */
+    struct SemanticFunctionAllocationEffect* next;
+} SemanticFunctionAllocationEffect;
+
 struct Slot {
     char* name;
     SlotKind kind;
@@ -81,6 +87,7 @@ struct Slot {
     const ASTNode* group_owner; /* Non-owning Group declaration that owns private nominal types. */
     const ASTNode* fast_exec_owner; /* Non-owning FASTEXEC block that owns ASM labels. */
     uint32_t type_id;
+    SemanticFunctionAllocationEffect* allocation_effects; /* Conservative interprocedural free summary. */
     struct Slot* next;
 };
 
@@ -127,6 +134,7 @@ typedef struct {
     uint32_t halted_function_depth;
     unsigned int loop_depth;
     unsigned int function_depth;
+    Slot* current_function_slot; /* Function whose body is being analyzed for interprocedural effects. */
     const char* current_func_return_type;
     Language lang;
     /* Optional job-owned collector shared with the parser stage. */
