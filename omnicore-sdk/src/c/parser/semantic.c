@@ -9995,6 +9995,8 @@ static void semantic_check_node(
             const char* function_name = func->name;
             int return_type_valid = 1;
             int errors_before_return_type = ctx->error_count;
+            SemanticReferenceInitSnapshot function_entry_state = {0};
+            int function_entry_state_captured = 0;
             if ((!function_name || !*function_name) &&
                 ctx->current_method_context)
                 function_name = ctx->current_method_public_name;
@@ -10305,6 +10307,11 @@ static void semantic_check_node(
                 uint8_t method_context_for_function = ctx->current_method_context;
                 ctx->current_method_context = 0u;
                 if (func->body) {
+                    /* A declaration is analyzed, not executed. Preserve the
+                       caller/global allocation state across its body analysis. */
+                    function_entry_state_captured =
+                        semantic_reference_init_snapshot_capture(
+                            ctx, &function_entry_state);
                     ++ctx->function_depth;
                     semantic_check(ctx, func->body);
                     /* Function-local allocations cannot outlive the call frame,
@@ -10314,6 +10321,11 @@ static void semantic_check_node(
                     if (ctx->halted_function_depth == (uint32_t)ctx->function_depth)
                         ctx->halted_function_depth = UINT32_MAX;
                     --ctx->function_depth;
+                    if (function_entry_state_captured)
+                        semantic_reference_init_snapshot_restore(
+                            ctx, &function_entry_state);
+                    semantic_reference_init_snapshot_destroy(
+                        &function_entry_state);
                     if (return_type_valid && func->return_type) {
                         const char* normalized_return = func->return_type;
                         while (normalized_return &&
@@ -12010,6 +12022,8 @@ static void semantic_check_node(
             uint32_t previous_receiver_type_id = ctx->current_method_receiver_type_id;
             uint8_t previous_method_context = ctx->current_method_context;
             uint8_t previous_method_is_object = ctx->current_method_is_object;
+            SemanticReferenceInitSnapshot method_entry_state = {0};
+            int method_entry_state_captured = 0;
             Slot* receiver_slot = NULL;
 
             ctx->current_method_context = 1u;
@@ -12039,6 +12053,11 @@ static void semantic_check_node(
             }
 
             if (m->implementation) {
+                /* Method declaration analysis must not execute its global
+                   allocation/free/assignment effects in the enclosing scope. */
+                method_entry_state_captured =
+                    semantic_reference_init_snapshot_capture(
+                        ctx, &method_entry_state);
                 /* A Group method is its own execution context, including the
                    block-form default handler which has no AST_FUNC_DECL. */
                 ++ctx->function_depth;
@@ -12049,6 +12068,10 @@ static void semantic_check_node(
                 if (ctx->halted_function_depth == (uint32_t)ctx->function_depth)
                     ctx->halted_function_depth = UINT32_MAX;
                 --ctx->function_depth;
+                if (method_entry_state_captured)
+                    semantic_reference_init_snapshot_restore(
+                        ctx, &method_entry_state);
+                semantic_reference_init_snapshot_destroy(&method_entry_state);
             }
 
             ctx->current_method_receiver_type = previous_receiver_type;
