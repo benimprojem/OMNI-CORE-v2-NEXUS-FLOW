@@ -1193,7 +1193,6 @@ static int semantic_relocation_borrow_lifetime_valid(
     const Slot* borrower;
     const BorrowOrigin* origin;
     if (!ctx || !source || !target) return 0;
-    if (source->borrow_suspended_by_identity != 0u) return 0;
     for (origin = source->borrow_origins; origin; origin = origin->next) {
         const Slot* owner = origin->owner;
         if (owner &&
@@ -10623,8 +10622,8 @@ static void semantic_check_node(
                     report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH,
                         "Relocation would shorten allocation lifetime below another live alias; invalidate or relocate the longer-lived alias first.");
                 } else if (source_slot->borrow_suspended_by_identity != 0u) {
-                    report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH,
-                        "A reference binding with an active mutable child reborrow cannot be relocated until the child scope ends.");
+                    /* The source identifier traversal already emitted the
+                       primary suspended-parent diagnostic; do not duplicate it. */
                 } else if (!semantic_relocation_borrow_lifetime_valid(
                                ctx, source_slot, target_slot)) {
                     report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH,
