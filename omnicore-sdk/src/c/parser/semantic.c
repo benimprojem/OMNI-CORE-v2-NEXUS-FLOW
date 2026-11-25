@@ -4654,16 +4654,19 @@ static uint64_t semantic_expression_allocation_identity_depth(
                     ctx, ((ASTIndexAccess*)expression)->target,
                     depth + 1u, address_context ? 2 : 0);
             return 0u;
-        case AST_CAST:
-            if (semantic_expression_is_pointer_like(ctx, expression))
+        case AST_CAST: {
+            const char* cast_type = get_expr_type(ctx, expression);
+            if (semantic_expression_is_pointer_like(ctx, expression) ||
+                semantic_is_integer_or_address_type(ctx, cast_type))
                 return semantic_expression_allocation_identity_depth(
                     ctx, ((ASTCast*)expression)->value, depth + 1u, 0);
             return 0u;
+        }
         case AST_BINARY_EXPR: {
             ASTBinaryExpr* binary = (ASTBinaryExpr*)expression;
             uint64_t left;
             uint64_t right;
-            if (!semantic_expression_is_pointer_like(ctx, expression))
+            if (binary->op != TOKEN_PLUS && binary->op != TOKEN_MINUS)
                 return 0u;
             left = semantic_expression_allocation_identity_depth(
                 ctx, binary->left, depth + 1u, 0);
