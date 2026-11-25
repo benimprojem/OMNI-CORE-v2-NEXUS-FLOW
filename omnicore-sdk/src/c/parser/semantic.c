@@ -2491,6 +2491,7 @@ static int semantic_snapshot_allocations_clone(
         copy->identity = source->identity;
         copy->origin = source->origin;
         copy->function_depth = source->function_depth;
+        copy->scope_depth = source->scope_depth;
         if (tail) tail->next = copy;
         else head = copy;
         tail = copy;
@@ -2526,6 +2527,7 @@ static int semantic_snapshot_allocations_intersection(
             copy->identity = current->identity;
             copy->origin = current->origin;
             copy->function_depth = current->function_depth;
+            copy->scope_depth = current->scope_depth;
             if (tail) tail->next = copy;
             else head = copy;
             tail = copy;
@@ -4534,6 +4536,7 @@ static uint64_t semantic_register_allocation(
     entry->identity = identity;
     entry->origin = origin;
     entry->function_depth = ctx->function_depth;
+    entry->scope_depth = (uint32_t)(ctx->current_depth < 0 ? 0 : ctx->current_depth);
     entry->next = ctx->active_allocations;
     ctx->active_allocations = entry;
     return identity;
@@ -9362,10 +9365,26 @@ static void semantic_check_node(
                         assign->left->type == AST_IDENTIFIER) {
                         Slot* assigned_slot = find_slot(
                             ctx, ((ASTIdentifier*)assign->left)->name);
-                        if (assigned_slot)
-                            assigned_slot->allocation_identity =
+                        if (assigned_slot) {
+                            uint64_t assigned_identity =
                                 semantic_expression_allocation_identity(
                                     ctx, assign->right);
+                            ActiveAllocation* assigned_allocation =
+                                semantic_find_active_allocation(
+                                    ctx, assigned_identity);
+                            assigned_slot->allocation_identity = assigned_identity;
+                            if (assigned_allocation &&
+                                assigned_slot->depth >= 0 &&
+                                (uint32_t)assigned_slot->depth <
+                                    assigned_allocation->scope_depth) {
+                                report_issue(ctx, assign->right,
+                                    ERR_SEMANTIC_TYPE_MISMATCH,
+                                    "A shorter-lived allocation cannot be stored in a binding that outlives its allocation scope.",
+                                    "Keep the handle within the allocation's lexical scope, or allocate in a scope that outlives the destination binding.",
+                                    "Keep the handle within the allocation's lexical scope, or allocate in a scope that outlives the destination binding.",
+                                    0, 0);
+                            }
+                        }
                     }
                 }
                 ctx->assignment_borrow_guard_owner = previous_guard_owner;
