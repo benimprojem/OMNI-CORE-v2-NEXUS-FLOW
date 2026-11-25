@@ -4207,6 +4207,9 @@ static int check_intrinsic_semantics(void) {
     const char* allocation_pointer_copy_use_after_free =
         "f:main() { v:a = area(64); v:p = addr(a); v:q = p; "
         "free(a); echo(q); }";
+    const char* allocation_offset_alias_use_after_free =
+        "f:main() { v:a = area(64); v:p = addr(a); v:q = p + 4; "
+        "free(a); echo(q); }";
     const char* allocation_return_escape_rejected =
         "f:make() { v:a = area(64); ret addr(a); }";
     const char* allocation_double_free =
@@ -4264,6 +4267,7 @@ static int check_intrinsic_semantics(void) {
         check_source(allocation_old_alias_stays_invalid, 1) &&
         check_source(allocation_address_alias_use_after_free, 1) &&
         check_source(allocation_pointer_copy_use_after_free, 1) &&
+        check_source(allocation_offset_alias_use_after_free, 1) &&
         check_source(allocation_return_escape_rejected, 1) &&
         check_source(allocation_double_free, 1) &&
         check_source(allocation_branch_release_is_not_live_after_join, 1) &&
