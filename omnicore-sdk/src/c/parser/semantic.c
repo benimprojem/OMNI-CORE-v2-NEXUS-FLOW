@@ -1184,6 +1184,91 @@ static void semantic_release_borrow_binding(
     borrower->borrow_path = NULL;
 }
 
+/* Relocation moves a binding identity, not the borrow graph it participates in.
+   Every incoming owner link and the borrower's stable identity must follow the
+   destination Slot so existing references and parent/child reborrows stay valid. */
+static int semantic_relocation_borrow_lifetime_valid(
+    const SemanticContext* ctx, const Slot* source, const Slot* target
+) {
+    const Slot* borrower;
+    const BorrowOrigin* origin;
+    if (!ctx || !source || !target) return 0;
+    if (source->borrow_suspended_by_identity != 0u) return 0;
+    for (origin = source->borrow_origins; origin; origin = origin->next) {
+        const Slot* owner = origin->owner;
+        if (owner &&
+            (owner->function_depth > target->function_depth ||
+             (owner->function_depth == target->function_depth &&
+              owner->depth > target->depth))) return 0;
+    }
+    if (source->borrowed_from &&
+        (source->borrowed_from->function_depth > target->function_depth ||
+         (source->borrowed_from->function_depth == target->function_depth &&
+          source->borrowed_from->depth > target->depth))) return 0;
+    if (source->borrow_origin &&
+        (source->borrow_origin->function_depth > target->function_depth ||
+         (source->borrow_origin->function_depth == target->function_depth &&
+          source->borrow_origin->depth > target->depth))) return 0;
+
+    for (borrower = ctx->head; borrower; borrower = borrower->next) {
+        int references_source = borrower->borrowed_from == source ||
+            borrower->borrow_origin == source;
+        for (origin = borrower->borrow_origins; origin && !references_source;
+             origin = origin->next) {
+            if (origin->owner == source) references_source = 1;
+        }
+        if (references_source &&
+            (borrower->function_depth < target->function_depth ||
+             (borrower->function_depth == target->function_depth &&
+              borrower->depth < target->depth))) return 0;
+    }
+    return 1;
+}
+
+static void semantic_transfer_slot_borrow_state(
+    SemanticContext* ctx, Slot* source, Slot* target
+) {
+    Slot* borrower;
+    if (!ctx || !source || !target || source == target) return;
+    target->borrow_identity = source->borrow_identity;
+    target->borrow_origins = source->borrow_origins;
+    target->borrowed_from = source->borrowed_from;
+    target->borrow_origin = source->borrow_origin;
+    target->borrow_path = source->borrow_path;
+    target->borrow_kind = source->borrow_kind;
+    target->borrow_suspended_by_identity =
+        source->borrow_suspended_by_identity;
+    target->shared_borrow_count = source->shared_borrow_count;
+    target->mutable_borrow_active = source->mutable_borrow_active;
+    target->is_initialized = source->is_initialized;
+    target->is_nullable = source->is_nullable;
+    target->callable_declaration = source->callable_declaration;
+
+    source->borrow_identity = 0u;
+    source->borrow_origins = NULL;
+    source->borrowed_from = NULL;
+    source->borrow_origin = NULL;
+    source->borrow_path = NULL;
+    source->borrow_kind = 0u;
+    source->borrow_suspended_by_identity = 0u;
+    source->shared_borrow_count = 0u;
+    source->mutable_borrow_active = 0u;
+    source->is_initialized = 0u;
+    source->is_nullable = 0u;
+    source->callable_declaration = NULL;
+
+    for (borrower = ctx->head; borrower; borrower = borrower->next) {
+        BorrowOrigin* origin;
+        if (borrower == source || borrower == target) continue;
+        if (borrower->borrowed_from == source)
+            borrower->borrowed_from = target;
+        if (borrower->borrow_origin == source)
+            borrower->borrow_origin = target;
+        for (origin = borrower->borrow_origins; origin; origin = origin->next)
+            if (origin->owner == source) origin->owner = target;
+    }
+}
+
 /* Install a fully allocated replacement before releasing the old binding.
    The legacy scalar fields mirror the first origin until all consumers migrate. */
 static int semantic_ensure_borrow_identity(
