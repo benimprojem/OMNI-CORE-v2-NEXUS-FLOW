@@ -1881,7 +1881,7 @@ static int semantic_type_is_container_storage_depth(
     if (!ctx || !raw_type) return 0;
     if (depth > 64u) return 1;
     while (*raw_type == '!') ++raw_type;
-    if (semantic_is_any(ctx, raw_type) ||
+    if (strcmp(raw_type, "any") == 0 ||
         semantic_is_array_type_name(raw_type) ||
         strcmp(raw_type, "tuple") == 0 ||
         strcmp(raw_type, "map") == 0 ||
