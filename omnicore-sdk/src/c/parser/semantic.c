@@ -4669,6 +4669,19 @@ static uint64_t semantic_expression_allocation_identity_depth(
                 unary->op == TOKEN_BORROW_MUT)
                 return semantic_expression_allocation_identity_depth(
                     ctx, unary->operand, depth + 1u, 1);
+            if (unary->op == TOKEN_PLUS)
+                return semantic_expression_allocation_identity_depth(
+                    ctx, unary->operand, depth + 1u, 0);
+            if (unary->op != TOKEN_NOT && unary->op != TOKEN_STAR) {
+                uint64_t operand_identity =
+                    semantic_expression_allocation_identity_depth(
+                        ctx, unary->operand, depth + 1u, 0);
+                if (operand_identity != 0u) {
+                    report_error(ctx, expression, ERR_SEMANTIC_TYPE_MISMATCH,
+                        "Unsupported unary transformation of an allocation-derived address; lifetime provenance cannot be proven.");
+                }
+                return 0u;
+            }
             if (unary->op == TOKEN_STAR &&
                 (address_context ||
                  semantic_expression_is_pointer_like(ctx, expression))) {
