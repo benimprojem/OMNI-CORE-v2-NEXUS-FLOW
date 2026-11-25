@@ -49,6 +49,8 @@ struct Slot {
     SlotKind kind;
     int is_const;
     int is_moved;          /* Ownership transferred by TOKEN_RELOCATE. */
+    ASTNode* relocation_origin; /* Original transfer site for an unused-destination warning. */
+    uint8_t relocation_used; /* Set only by a successful value read, never by a write target. */
     uint32_t shared_borrow_count;
     uint8_t mutable_borrow_active;
     uint8_t borrow_kind;    /* 0 none, 1 shared, 2 exclusive. */
