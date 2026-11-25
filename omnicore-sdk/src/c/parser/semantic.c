@@ -10550,14 +10550,19 @@ static void semantic_check_node(
                     ctx,((ASTIdentifier*)relocate->target)->name,
                     SLOT_VAR,0,source_type,relocate->target,1,0,0,0u);
             }
-            ++ctx->assignment_target_depth;
-            ++ctx->allocation_write_target_depth;
-            semantic_check(ctx,relocate->target);
-            --ctx->allocation_write_target_depth;
-            --ctx->assignment_target_depth;
+            if(relocate->target && relocate->target->type==AST_IDENTIFIER) {
+                /* The destination is a write/declaration target, not a read.
+                   A new reference Handler is initialized by relocation below. */
+                target_slot=find_slot(
+                    ctx,((ASTIdentifier*)relocate->target)->name);
+            } else {
+                ++ctx->assignment_target_depth;
+                ++ctx->allocation_write_target_depth;
+                semantic_check(ctx,relocate->target);
+                --ctx->allocation_write_target_depth;
+                --ctx->assignment_target_depth;
+            }
             target_type=get_expr_type(ctx,relocate->target);
-            if(relocate->target && relocate->target->type==AST_IDENTIFIER)
-                target_slot=find_slot(ctx,((ASTIdentifier*)relocate->target)->name);
             if(!relocate->source || relocate->source->type!=AST_IDENTIFIER ||
                !relocate->target || relocate->target->type!=AST_IDENTIFIER) {
                 report_error(ctx,node,ERR_SEMANTIC_TYPE_MISMATCH,
