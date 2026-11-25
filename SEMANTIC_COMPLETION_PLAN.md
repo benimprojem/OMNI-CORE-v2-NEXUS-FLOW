@@ -918,6 +918,8 @@ Added a monotonic context-local identity to reference-binding Slots and recorded
 ### SEM-005 — Halt lexical traversal implementation checkpoint (2026-11-25)
 
 ### SEM-005 — allocation frame cleanup and branch liveness joins (2026-11-25)
+- Function declaration bodies are now analyzed against an isolated entry snapshot: global/outer allocation state is restored after analyzing a function or Group method, so merely declaring a function that frees a global does not consume that allocation during compilation.
+- Active allocation records now also carry lexical scope depth. Assignment rejects storing an allocation-derived handle into a binding whose scope outlives the allocation scope; function-local allocations cannot escape into global/outer bindings.
 
 - Active allocation identities are now included in Semantic branch snapshots. Snapshot restore reinstates the path-specific active set; branch merge intersects active identities, so an allocation released on any incoming path is not considered live after the join.
 - Every variable Slot is included in the branch snapshot so allocation provenance assigned inside a branch is not omitted merely because the binding had no allocation identity before entering the branch.
