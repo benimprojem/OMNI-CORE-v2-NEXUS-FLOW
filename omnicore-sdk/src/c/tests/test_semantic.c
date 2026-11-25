@@ -4213,6 +4213,8 @@ static int check_intrinsic_semantics(void) {
         "free(a); poke(p, b); }";
     const char* allocation_free_through_address_alias =
         "f:main() { v:a = area(64); v:p = addr(a); free(p); }";
+    const char* allocation_free_untracked_address_rejected =
+        "f:main() { v:value!i32 = 1; v:p = addr(value); free(p); }";
     const char* allocation_address_alias_use_after_free =
         "f:main() { v:a = area(64); v:p = addr(a); free(a); echo(p); }";
     const char* allocation_pointer_copy_use_after_free =
@@ -4307,6 +4309,7 @@ static int check_intrinsic_semantics(void) {
         check_source(allocation_rebinding_released_slot_is_valid, 0) &&
         check_source(allocation_write_through_stale_pointer_rejected, 1) &&
         check_source(allocation_free_through_address_alias, 0) &&
+        check_source(allocation_free_untracked_address_rejected, 1) &&
         check_source(allocation_address_alias_use_after_free, 1) &&
         check_source(allocation_pointer_copy_use_after_free, 1) &&
         check_source(allocation_handle_reference_dereference_use_after_free, 1) &&
