@@ -10172,6 +10172,10 @@ static void semantic_check_node(
                 if (func->body) {
                     ++ctx->function_depth;
                     semantic_check(ctx, func->body);
+                    /* Function-local allocations cannot outlive the call frame,
+                       even when the body reaches its closing brace normally. */
+                    semantic_release_function_allocations(
+                        ctx, (uint32_t)ctx->function_depth);
                     if (ctx->halted_function_depth == (uint32_t)ctx->function_depth)
                         ctx->halted_function_depth = UINT32_MAX;
                     --ctx->function_depth;
@@ -11889,6 +11893,9 @@ static void semantic_check_node(
                    block-form default handler which has no AST_FUNC_DECL. */
                 ++ctx->function_depth;
                 semantic_check_node(ctx, m->implementation, 0);
+                /* Block-form handlers have no AST_FUNC_DECL to unwind them. */
+                semantic_release_function_allocations(
+                    ctx, (uint32_t)ctx->function_depth);
                 if (ctx->halted_function_depth == (uint32_t)ctx->function_depth)
                     ctx->halted_function_depth = UINT32_MAX;
                 --ctx->function_depth;
