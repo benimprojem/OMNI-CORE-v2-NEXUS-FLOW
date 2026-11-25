@@ -2305,6 +2305,7 @@ Semantic resolves the qualifier to an enum declaration and the member to one of 
 
 - `area(size)` and `zone(size)` create distinct allocation identities. The identity is semantic provenance, not the numeric address returned by the allocator.
 - Copying an allocation handle copies its allocation identity. All aliases therefore refer to the same allocation lifetime.
+- `addr(handle)` derives an address into the allocation and preserves its allocation identity through pointer copies and address-offset arithmetic. By contrast, unary `&identifier` takes the address of the variable that stores the handle; it is not itself an address into the allocation.
 - `free(handle)` ends that identity's lifetime. Every alias carrying that identity becomes invalid immediately; later reads or uses must be rejected by Semantic.
 - If the allocator later reuses the same numeric address, the new allocation receives a fresh identity. The new handle is valid, but no old alias is revived by address equality.
 - `?;` and `}?;` terminate the current execution context and invalidate its active allocation identities. Code after the terminating Halt is unreachable.
