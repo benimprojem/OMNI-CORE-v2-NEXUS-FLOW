@@ -2590,9 +2590,11 @@ static void semantic_reference_init_snapshot_destroy(
 ) {
     size_t index;
     if (!snapshot) return;
-    for (index = 0u; index < snapshot->count; ++index)
-        semantic_snapshot_borrow_origins_destroy(
-            snapshot->entries[index].borrow_origins);
+    if (snapshot->entries) {
+        for (index = 0u; index < snapshot->count; ++index)
+            semantic_snapshot_borrow_origins_destroy(
+                snapshot->entries[index].borrow_origins);
+    }
     free(snapshot->entries);
     snapshot->entries = NULL;
     snapshot->count = 0u;
