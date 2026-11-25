@@ -55,7 +55,9 @@ static int check_file(const char* path, int expect_error, ErrorCode expected_cod
     return ok;
 }
 
-static int check_source_warning(const char* source) {
+static int check_source_warning_expectation(
+    const char* source, int expect_warning
+) {
     ParserContext* parser = parser_init_source(
         "semantic-warning.nxf", (const uint8_t*)source, strlen(source));
     OccDiagnosticCollector diagnostics;
@@ -75,13 +77,15 @@ static int check_source_warning(const char* source) {
     for (error = semantic.error_head; error; error = error->next) {
         if (error->is_warning) warning_found = 1;
     }
-    ok = semantic.error_count == 0 && warning_found &&
-        occ_diagnostics_count_severity(&diagnostics, OCC_DIAG_WARNING) > 0 &&
-        occ_diagnostics_count_severity(&diagnostics, OCC_DIAG_ERROR) == 0;
+    ok = semantic.error_count == 0 &&
+        warning_found == expect_warning &&
+        occ_diagnostics_count_severity(&diagnostics, OCC_DIAG_WARNING) ==
+            (expect_warning ? 1u : 0u) &&
+        occ_diagnostics_count_severity(&diagnostics, OCC_DIAG_ERROR) == 0u;
     if (!ok) {
         fprintf(stderr,
-            "Expected warning-only semantic result (errors=%d, warnings=%d) source=%s\\n",
-            semantic.error_count, warning_found, source);
+            "Unexpected semantic warning state (errors=%d, warnings=%d, expected=%d) source=%s\\n",
+            semantic.error_count, warning_found, expect_warning, source);
     }
     semantic_destroy(&semantic);
     occ_diagnostics_destroy(&diagnostics);
@@ -127,7 +131,7 @@ static int check_relocation_unused_warning(void) {
     const char* consumed =
         "f:main() { v:src!i32 = 1; v:dst!i32 = 0; "
         "v:moved = src _> dst; echo(dst); }";
-    return check_source_warning(unused) && check_source(consumed, 0);
+    return check_source_warning_expectation(unused, 1) &&\n        check_source_warning_expectation(consumed, 0);
 }
 
 static int check_imported_function_call_semantics(void) {
