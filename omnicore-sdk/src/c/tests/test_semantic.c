@@ -4234,6 +4234,15 @@ static int check_intrinsic_semantics(void) {
     const char* halt_does_not_release_global_allocation =
         "v:global_area = area(64); f:stop() { ?; } "
         "f:main() { echo(global_area); free(global_area); }";
+    const char* function_analysis_does_not_consume_global_allocation =
+        "v:global_area = area(64); f:cleanup() { free(global_area); } "
+        "f:main() { echo(global_area); }";
+    const char* local_allocation_cannot_escape_to_outer_binding =
+        "f:main() { v:outer = area(32); "
+        "{ v:inner = area(64); outer = inner; } echo(outer); }";
+    const char* function_local_allocation_cannot_escape_to_global =
+        "v:global_area = area(64); "
+        "f:leak() { global_area = area(32); }";
     const char* halt_stops_current_table =
         "f:main() { ?; v:unreachable = missing_after_halt; }";
     const char* halt_is_local_to_nested_table =
@@ -4266,6 +4275,9 @@ static int check_intrinsic_semantics(void) {
         check_source(invalid_free, 1) &&
         check_source(invalid_count, 7) &&
         check_source(halt_does_not_release_global_allocation, 0) &&
+        check_source(function_analysis_does_not_consume_global_allocation, 0) &&
+        check_source(local_allocation_cannot_escape_to_outer_binding, 1) &&
+        check_source(function_local_allocation_cannot_escape_to_global, 1) &&
         check_source(halt_stops_current_table, 0) &&
         check_source(halt_is_local_to_nested_table, 0) &&
         check_source(block_halt_is_local_to_nested_table, 0);
