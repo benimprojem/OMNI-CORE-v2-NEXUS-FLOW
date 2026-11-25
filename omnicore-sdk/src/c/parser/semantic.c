@@ -12677,11 +12677,34 @@ static void semantic_check_node(
                     ASTNode* value = semantic_intrinsic_argument_value(call->args);
                     uint64_t identity = semantic_expression_allocation_identity(ctx, value);
                     if (identity != 0u) {
-                        if (semantic_find_active_allocation(ctx, identity) &&
+                        ActiveAllocation* active =
+                            semantic_find_active_allocation(ctx, identity);
+                        if (active &&
                             !semantic_expression_allocation_is_base(ctx, value)) {
                             report_error(ctx, value, ERR_SEMANTIC_TYPE_MISMATCH,
                                 "free() requires the allocation's base handle/address; an interior or offset pointer cannot release the allocation.");
                         } else {
+                            if (active &&
+                                active->function_depth < ctx->function_depth) {
+                                Slot* freed_binding = NULL;
+                                if (value && value->type == AST_IDENTIFIER) {
+                                    freed_binding = find_slot(
+                                        ctx, ((ASTIdentifier*)value)->name);
+                                }
+                                if (!ctx->current_function_slot ||
+                                    !freed_binding ||
+                                    freed_binding->function_depth >=
+                                        ctx->function_depth ||
+                                    freed_binding->allocation_identity != identity) {
+                                    report_error(ctx, value,
+                                        ERR_SEMANTIC_TYPE_MISMATCH,
+                                        "A function cannot summarize free() through a local/computed alias of an outer allocation; free the direct owning binding or use an explicit ownership-transfer contract.");
+                                } else {
+                                    (void)semantic_record_function_allocation_effect(
+                                        ctx, ctx->current_function_slot,
+                                        freed_binding, value);
+                                }
+                            }
                             /* A stale identifier already receives its primary
                                source-located diagnostic in the argument traversal. */
                             (void)semantic_release_allocation(ctx, identity);
