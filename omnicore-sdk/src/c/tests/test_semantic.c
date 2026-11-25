@@ -1860,12 +1860,14 @@ static int check_allocation_handle_container_storage_rejection_semantics(void) {
         "f:main() { v:items = [area(16), area(32)]; }";
     const char* any_variable_area_handle =
         "f:main() { v:value!any = area(16); }";
+    const char* any_variable_area_handle_assignment =
+        "f:main() { v:value!any; value = area(16); }";
     return check_source(fixed_array_any_handle_assignment, 1) &&
         check_source(map_area_handle_assignment, 1) &&
         check_source(any_field_area_handle_assignment, 1) &&
         check_source(nested_any_field_area_handle_assignment, 1) &&
         check_source(inferred_array_area_handles, 1) &&
-        check_source(any_variable_area_handle, 1);
+        check_source(any_variable_area_handle, 1) &&\n        check_source(any_variable_area_handle_assignment, 1);
 }
 
 
