@@ -55,6 +55,40 @@ static int check_file(const char* path, int expect_error, ErrorCode expected_cod
     return ok;
 }
 
+static int check_source_warning(const char* source) {
+    ParserContext* parser = parser_init_source(
+        "semantic-warning.nxf", (const uint8_t*)source, strlen(source));
+    OccDiagnosticCollector diagnostics;
+    SemanticContext semantic;
+    Error* error;
+    int warning_found = 0;
+    int ok;
+    if (!parser) return 0;
+    if (parser_run(parser) != 0 || !parser->ast_root) {
+        parser_destroy(parser);
+        return 0;
+    }
+    occ_diagnostics_init(&diagnostics);
+    semantic_init(&semantic, "semantic-warning.nxf", NULL);
+    semantic_attach_diagnostics(&semantic, &diagnostics, OCC_STAGE_SEMANTIC);
+    semantic_check(&semantic, (ASTNode*)parser->ast_root);
+    for (error = semantic.error_head; error; error = error->next) {
+        if (error->is_warning) warning_found = 1;
+    }
+    ok = semantic.error_count == 0 && warning_found &&
+        occ_diagnostics_count_severity(&diagnostics, OCC_DIAG_WARNING) > 0 &&
+        occ_diagnostics_count_severity(&diagnostics, OCC_DIAG_ERROR) == 0;
+    if (!ok) {
+        fprintf(stderr,
+            "Expected warning-only semantic result (errors=%d, warnings=%d) source=%s\\n",
+            semantic.error_count, warning_found, source);
+    }
+    semantic_destroy(&semantic);
+    occ_diagnostics_destroy(&diagnostics);
+    parser_destroy(parser);
+    return ok;
+}
+
 static int check_source(const char* source, int expected_errors) {
     ParserContext* parser = parser_init_source(
         "semantic-control.nxf", (const uint8_t*)source, strlen(source));
@@ -86,6 +120,15 @@ static int check_source(const char* source, int expected_errors) {
     return ok;
 }
 
+
+static int check_relocation_unused_warning(void) {
+    const char* unused =
+        "f:main() { v:src!i32 = 1; v:dst!i32 = 0; v:moved = src _> dst; }";
+    const char* consumed =
+        "f:main() { v:src!i32 = 1; v:dst!i32 = 0; "
+        "v:moved = src _> dst; echo(dst); }";
+    return check_source_warning(unused) && check_source(consumed, 0);
+}
 
 static int check_imported_function_call_semantics(void) {
     OccModuleInterfaceSymbol symbol;
@@ -4629,6 +4672,10 @@ int main(int argc, char** argv) {
     }
     if (!check_malformed_expression_and_loop_ast()) {
         fprintf(stderr, "Malformed expression/loop AST checks failed.\n");
+        return 1;
+    }
+    if (!check_relocation_unused_warning()) {
+        fprintf(stderr, "Relocation unused-destination warning checks failed.\\n");
         return 1;
     }
     if (!check_handler_capture_semantics()) {
