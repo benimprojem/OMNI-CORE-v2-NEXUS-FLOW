@@ -1528,8 +1528,9 @@ static char* semantic_lvalue_path(SemanticContext* ctx, const ASTNode* node) {
     char* result;
     if (!node) return NULL;
     if (node->type == AST_IDENTIFIER) {
-        result = (char*)malloc(1u);
+        result = (char*)semantic_allocate(ctx, 1u);
         if (result) result[0] = '\0';
+        else semantic_set_result_error(ctx, SEMANTIC_RESULT_OUT_OF_MEMORY);
         return result;
     }
     if (node->type == AST_MEMBER_ACCESS) {
@@ -1555,9 +1556,10 @@ static char* semantic_lvalue_path(SemanticContext* ctx, const ASTNode* node) {
                 free(parent);
                 return NULL;
             }
-            member_suffix = (char*)malloc(member_length + 2u);
+            member_suffix = (char*)semantic_allocate(ctx, member_length + 2u);
             if (!member_suffix) {
                 free(parent);
+                semantic_set_result_error(ctx, SEMANTIC_RESULT_OUT_OF_MEMORY);
                 return NULL;
             }
             member_suffix[0] = '.';
@@ -1591,11 +1593,12 @@ static char* semantic_lvalue_path(SemanticContext* ctx, const ASTNode* node) {
         if (node->type == AST_MEMBER_ACCESS) free((void*)suffix);
         return NULL;
     }
-    result = (char*)malloc(parent_length + suffix_length + 1u);
+    result = (char*)semantic_allocate(ctx, parent_length + suffix_length + 1u);
     if (result) {
         memcpy(result, parent, parent_length);
         memcpy(result + parent_length, suffix, suffix_length + 1u);
     }
+    if (!result) semantic_set_result_error(ctx, SEMANTIC_RESULT_OUT_OF_MEMORY);
     free(parent);
     if (node->type == AST_MEMBER_ACCESS) free((void*)suffix);
     return result;
@@ -6395,9 +6398,10 @@ static void semantic_validate_call_arguments(
     }
 
     if (argument_count) {
-        temporary_borrows = (SemanticCallBorrow*)calloc(
-            argument_count, sizeof(*temporary_borrows));
+        temporary_borrows = (SemanticCallBorrow*)semantic_callocate(
+            ctx, argument_count, sizeof(*temporary_borrows));
         if (!temporary_borrows) {
+            semantic_set_result_error(ctx, SEMANTIC_RESULT_OUT_OF_MEMORY);
             report_error(ctx, call_node, ERR_SEMANTIC_TYPE_MISMATCH,
                 "Unable to allocate temporary call-borrow tracking state.");
             return;
