@@ -10642,6 +10642,13 @@ static void semantic_check_node(
                 } else if (alias_outlives_target) {
                     report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH,
                         "Relocation would shorten allocation lifetime below another live alias; invalidate or relocate the longer-lived alias first.");
+                } else if (source_slot->borrow_suspended_by_identity != 0u) {
+                    report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH,
+                        "A reference binding with an active mutable child reborrow cannot be relocated until the child scope ends.");
+                } else if (!semantic_relocation_borrow_lifetime_valid(
+                               ctx, source_slot, target_slot)) {
+                    report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH,
+                        "Relocation would violate an active borrow's owner lifetime; keep the destination within the owner's and borrowers' compatible scopes.");
                 } else if (source_allocation &&
                            target_slot->function_depth !=
                                source_allocation->function_depth) {
@@ -10653,6 +10660,8 @@ static void semantic_check_node(
                     report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH,
                         "Relocation destination already owns a different active allocation; release or relocate it first.");
                 } else {
+                    semantic_transfer_slot_borrow_state(
+                        ctx, source_slot, target_slot);
                     if (target_slot->relocation_origin &&
                         !target_slot->relocation_used) {
                         report_issue(ctx, target_slot->relocation_origin,
