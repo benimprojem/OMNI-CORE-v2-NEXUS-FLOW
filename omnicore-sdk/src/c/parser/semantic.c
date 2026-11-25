@@ -7513,7 +7513,7 @@ static void semantic_returned_reference_alias_restore(
 }
 
 static int semantic_scan_returned_reference_parameter(
-    ctx, SemanticContext* ctx, const ASTNode* node, const ASTNode* params, int* selected, int* saw_return,
+    SemanticContext* ctx, const ASTNode* node, const ASTNode* params, int* selected, int* saw_return,
     SemanticReturnedReferenceAlias** aliases
 ) {
     const ASTNode* current;
