@@ -6603,6 +6603,26 @@ static void semantic_validate_call_arguments(
                     ? function_slot->param_types[parameter_index] : NULL;
 
             if (expected_type && semantic_type_is_any(ctx, expected_type) &&
+                semantic_expression_contains_allocation_handle(
+                    ctx, argument_value)) {
+                report_error(ctx, argument, ERR_SEMANTIC_ARG_TYPE,
+                    "An allocation-derived handle/address cannot cross an any parameter because the callee boundary has no allocation identity or lifetime contract.");
+            }
+            if (function_slot->declaration_node &&
+                function_slot->declaration_node->type == AST_EXTERN_DECL &&
+                semantic_expression_contains_allocation_handle(
+                    ctx, argument_value)) {
+                report_error(ctx, argument, ERR_SEMANTIC_ARG_TYPE,
+                    "An allocation-derived handle/address cannot cross an extern boundary without an explicit allocation-lifetime ABI contract.");
+            }
+            if (function_slot->is_variadic &&
+                parameter_index >= (uint32_t)function_slot->param_count &&
+                semantic_expression_contains_allocation_handle(
+                    ctx, argument_value)) {
+                report_error(ctx, argument, ERR_SEMANTIC_ARG_TYPE,
+                    "A variadic argument cannot carry an allocation-derived handle/address because the variadic contract has no allocation-lifetime tracking.");
+            }
+            if (expected_type && semantic_type_is_any(ctx, expected_type) &&
                 (semantic_expression_contains_safe_reference(
                     ctx, argument_value, 0u) ||
                  semantic_type_or_callback_contract_contains_safe_reference(
