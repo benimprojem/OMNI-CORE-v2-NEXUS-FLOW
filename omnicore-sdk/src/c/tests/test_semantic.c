@@ -4543,6 +4543,8 @@ static int check_intrinsic_semantics(void) {
         "f:main() { v:a = area(64); v:p = addr(a); free(p); }";
     const char* allocation_free_through_handle_reference =
         "f:main() { v:a = area(64); v:p = &a; free(*p); }";
+    const char* allocation_free_through_handle_reference_with_live_alias =
+        "f:main() { v:a = area(64); v:p = &a; v:q = &a; free(*p); }";
     const char* allocation_free_untracked_address_rejected =
         "f:main() { v:value!i32 = 1; v:p = addr(value); free(p); }";
     const char* allocation_address_alias_use_after_free =
@@ -4656,6 +4658,7 @@ static int check_intrinsic_semantics(void) {
         check_source(allocation_write_through_stale_pointer_rejected, 1) &&
         check_source(allocation_free_through_address_alias, 0) &&
         check_source(allocation_free_through_handle_reference, 0) &&
+        check_source(allocation_free_through_handle_reference_with_live_alias, 1) &&
         check_source(allocation_free_untracked_address_rejected, 1) &&
         check_source(allocation_address_alias_use_after_free, 1) &&
         check_source(allocation_pointer_copy_use_after_free, 1) &&
