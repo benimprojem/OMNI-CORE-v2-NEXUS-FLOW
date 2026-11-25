@@ -10102,6 +10102,11 @@ static void semantic_check_node(
                     (source_allocation_identity != 0u && !source_allocation)) {
                     report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH,
                         "Relocation source carries an allocation identity that is no longer active.");
+                } else if (source_allocation &&
+                           target_slot->function_depth !=
+                               source_allocation->function_depth) {
+                    report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH,
+                        "Relocation across execution-frame boundaries requires a verified interprocedural ownership contract.");
                 } else if (target_allocation &&
                            target_slot->allocation_identity !=
                                source_allocation_identity) {
