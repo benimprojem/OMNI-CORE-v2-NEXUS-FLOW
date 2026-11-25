@@ -9092,8 +9092,6 @@ static void semantic_check_node(
                 }
                 if (slot && slot->type_name) {
                     const char* right_type = get_expr_type(ctx, assign->right);
-                    slot->allocation_identity =
-                        semantic_expression_allocation_identity(ctx, assign->right);
                     int named_function_assignment = 0;
                     if (semantic_type_is_any(ctx, slot->type_name) &&
                         semantic_expression_contains_safe_reference(
@@ -9356,7 +9354,19 @@ static void semantic_check_node(
                     }
                     free(target_path);
                 }
-                semantic_check(ctx, assign->right);
+                {
+                    int right_error_baseline = ctx->error_count;
+                    semantic_check(ctx, assign->right);
+                    if (ctx->error_count == right_error_baseline &&
+                        assign->left->type == AST_IDENTIFIER) {
+                        Slot* assigned_slot = find_slot(
+                            ctx, ((ASTIdentifier*)assign->left)->name);
+                        if (assigned_slot)
+                            assigned_slot->allocation_identity =
+                                semantic_expression_allocation_identity(
+                                    ctx, assign->right);
+                    }
+                }
                 ctx->assignment_borrow_guard_owner = previous_guard_owner;
             }
             if (assign->left->type == AST_IDENTIFIER) {
