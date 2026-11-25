@@ -8714,6 +8714,23 @@ static void semantic_check_node(
                 if (((declared_slot && semantic_type_is_any(
                         ctx, declared_slot->type_name)) ||
                      (declared_slot && semantic_is_array_type_name(
+                        declared_slot->type_name)) ||
+                     (declared_slot && declared_slot->type_name &&
+                      strcmp(declared_slot->type_name, "tuple") == 0) ||
+                     (decl->initializer->type == AST_STRUCT_LITERAL) ||
+                     (decl->initializer->type == AST_TUPLE)) &&
+                    semantic_expression_contains_allocation_handle(
+                        ctx, decl->initializer)) {
+                    report_issue(ctx, decl->initializer,
+                        ERR_SEMANTIC_TYPE_MISMATCH,
+                        "Allocation handles cannot be stored inside any, arrays, tuples, or aggregate initializers because per-element/per-field allocation identity tracking is unavailable.",
+                        "Keep area/zone handles in direct bindings; do not hide them inside dynamic or aggregate containers.",
+                        "Keep area/zone handles in direct bindings; do not hide them inside dynamic or aggregate containers.",
+                        0, 0);
+                }
+                if (((declared_slot && semantic_type_is_any(
+                        ctx, declared_slot->type_name)) ||
+                     (declared_slot && semantic_is_array_type_name(
                         declared_slot->type_name) &&
                       decl->initializer->type != AST_ARRAY_LITERAL) ||
                      (declared_slot && declared_slot->type_name &&
@@ -9624,6 +9641,14 @@ static void semantic_check_node(
                   ((ASTUnaryExpr*)assign->left)->op == TOKEN_STAR))) {
                 const char* stored_type = get_expr_type(ctx, assign->right);
                 const char* target_type = get_expr_type(ctx, assign->left);
+                if (semantic_expression_contains_allocation_handle(
+                        ctx, assign->right)) {
+                    report_issue(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH,
+                        "Allocation handles or allocation-derived addresses cannot be stored through member/index/pointer targets because per-field/per-element allocation identity tracking is unavailable.",
+                        "Keep the handle in a direct binding, or use an explicitly converted raw pointer only when accepting the unsafe provenance boundary.",
+                        "Keep the handle in a direct binding, or use an explicitly converted raw pointer only when accepting the unsafe provenance boundary.",
+                        0, 0);
+                }
                 if (semantic_expression_contains_safe_reference(
                         ctx, assign->right, 0u) &&
                     !semantic_type_contains_safe_reference(ctx, target_type, 0u)) {
@@ -11618,6 +11643,21 @@ static void semantic_check_node(
                                 v->name, sdecl->name ? sdecl->name : "<anonymous>");
                             report_error(ctx, field_node,
                                 ERR_SEMANTIC_TYPE_MISMATCH, message);
+                        }
+
+                        if (v->type_name &&
+                            semantic_type_contains_allocation_handle(
+                                ctx, v->type_name, 0u)) {
+                            char message[384];
+                            (void)snprintf(message, sizeof(message),
+                                "Aggregate '%s' field '%s' contains allocation handle type '%s'; per-field allocation identity tracking is not implemented.",
+                                sdecl->name ? sdecl->name : "<anonymous>",
+                                v->name, v->type_name);
+                            report_issue(ctx, field_node,
+                                ERR_SEMANTIC_TYPE_MISMATCH, message,
+                                "Keep area/zone handles in direct local bindings until aggregate field-level allocation provenance is supported.",
+                                "Keep area/zone handles in direct local bindings until aggregate field-level allocation provenance is supported.",
+                                0, 0);
                         }
 
                         if (v->type_name &&
