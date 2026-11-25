@@ -128,20 +128,20 @@ static int check_source(const char* source, int expected_errors) {
 static int check_relocation_borrow_state_transfer(void) {
     const char* shared_reference_binding_move =
         "f:main() { v:owner!i32 = 1; &reference!i32 = &owner; "
-        "v:moved = reference _> (hand); v:value!i32 = *hand; }";
+        "reference _> (hand); v:value!i32 = *hand; }";
     const char* shared_borrowed_owner_move =
         "f:main() { v:owner!i32 = 1; &reference!i32 = &owner; "
-        "v:moved = owner _> (hand); v:value!i32 = *reference; }";
+        "owner _> (hand); v:value!i32 = *reference; }";
     const char* mutable_reference_binding_move =
         "f:main() { v:owner!i32 = 1; &mut reference!i32 = &mut owner; "
         "v:moved = reference _> (hand); *hand = 2; v:value!i32 = *hand; }";
     const char* existing_destination_borrow_is_replaced =
         "f:main() { v:first!i32 = 1; v:second!i32 = 2; "
         "&source!i32 = &first; &target!i32 = &second; "
-        "v:moved = source _> (target); v:value!i32 = *target; }";
+        "source _> (target); v:value!i32 = *target; }";
     const char* destination_with_live_borrow_is_rejected =
         "f:main() { v:source!i32 = 2; v:owner!i32 = 1; "
-        "&borrow!i32 = &owner; v:moved = source _> (owner); }";
+        "&borrow!i32 = &owner; source _> (owner); }";
     return check_source(shared_reference_binding_move, 0) &&
         check_source(shared_borrowed_owner_move, 0) &&
         check_source(mutable_reference_binding_move, 0) &&
