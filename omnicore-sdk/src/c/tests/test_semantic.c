@@ -1881,6 +1881,30 @@ static int check_raw_pointer_initialization_and_nullability_semantics(void) {
         check_source(raw_pointer_parameter_accepts_null, 0);
 }
 
+static int check_interprocedural_allocation_free_effects(void) {
+    const char* direct_free_effect =
+        "v:handle = area(16); "
+        "f:release() { free(handle); } "
+        "f:main() { release(); echo(handle); }";
+    const char* transitive_free_effect =
+        "v:handle = area(16); "
+        "f:release() { free(handle); } "
+        "f:wrapper() { release(); } "
+        "f:main() { wrapper(); echo(handle); }";
+    const char* local_alias_free_is_rejected =
+        "v:handle = area(16); "
+        "f:release() { v:alias = handle; free(alias); } "
+        "f:main() { release(); }";
+    const char* repeated_free_effect_is_rejected =
+        "v:handle = area(16); "
+        "f:release() { free(handle); } "
+        "f:main() { release(); release(); }";
+    return check_source(direct_free_effect, 1) &&
+        check_source(transitive_free_effect, 1) &&
+        check_source(local_alias_free_is_rejected, 1) &&
+        check_source(repeated_free_effect_is_rejected, 1);
+}
+
 static int check_allocation_handle_call_escape_rejection_semantics(void) {
     const char* any_parameter_call =
         "f:consume(value!any) {} "
@@ -4980,6 +5004,10 @@ int main(int argc, char** argv) {
     }
     if (!check_raw_pointer_initialization_and_nullability_semantics()) {
         fprintf(stderr, "Raw-pointer initialization/nullability checks failed.\\n");
+        return 1;
+    }
+    if (!check_interprocedural_allocation_free_effects()) {
+        fprintf(stderr, "Interprocedural allocation free-effect checks failed.\\n");
         return 1;
     }
     if (!check_allocation_handle_call_escape_rejection_semantics()) {
