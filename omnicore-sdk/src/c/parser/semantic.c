@@ -2153,6 +2153,7 @@ static void semantic_reference_init_snapshot_restore(
     }
     if (snapshot->count > SIZE_MAX / sizeof(*restored_sets)) {
         semantic_set_result_error(ctx, SEMANTIC_RESULT_OUT_OF_MEMORY);
+        semantic_snapshot_allocations_destroy(restored_allocations);
         return;
     }
     restored_sets = (BorrowOrigin**)semantic_callocate(
@@ -2256,33 +2257,57 @@ static int semantic_snapshot_borrow_origins_equal(
     return 1;
 }
 
-static void semantic_reference_init_snapshot_merge(
+static int semantic_reference_init_snapshot_merge(
     SemanticContext* ctx, SemanticReferenceInitSnapshot* left,
     const SemanticReferenceInitSnapshot* right
 ) {
+    SemanticReferenceInitSnapshot merged = {0};
     size_t index;
-    ActiveAllocation* merged_allocations = NULL;
-    if (!left || !right || left->count != right->count) return;
+    if (!ctx || !left || !right || left->count != right->count)
+        return 0;
+
+    merged.count = left->count;
     if (!semantic_snapshot_allocations_intersection(
             ctx, left->allocations, right->allocations,
-            &merged_allocations))
-        return;
-    semantic_snapshot_allocations_destroy(left->allocations);
-    left->allocations = merged_allocations;
-    for (index = 0u; index < left->count; ++index) {
-        Slot* slot = left->entries[index].slot;
+            &merged.allocations))
+        goto merge_failure;
+
+    if (merged.count != 0u) {
+        if (merged.count > SIZE_MAX / sizeof(*merged.entries)) {
+            semantic_set_result_error(ctx, SEMANTIC_RESULT_OUT_OF_MEMORY);
+            goto merge_failure;
+        }
+        merged.entries = (SemanticReferenceInitEntry*)semantic_callocate(
+            ctx, merged.count, sizeof(*merged.entries));
+        if (!merged.entries) {
+            semantic_set_result_error(ctx, SEMANTIC_RESULT_OUT_OF_MEMORY);
+            goto merge_failure;
+        }
+    }
+
+    /* Build the complete merged snapshot off to the side. No caller-visible
+       snapshot state changes until every required allocation succeeds. */
+    for (index = 0u; index < merged.count; ++index) {
+        merged.entries[index] = left->entries[index];
+        merged.entries[index].borrow_origins = NULL;
+        if (!semantic_snapshot_borrow_origins_clone(
+                ctx, left->entries[index].borrow_origins,
+                &merged.entries[index].borrow_origins))
+            goto merge_failure;
+    }
+
+    for (index = 0u; index < merged.count; ++index) {
+        Slot* slot = merged.entries[index].slot;
         if (slot && slot == right->entries[index].slot) {
             BorrowOrigin* union_origins = NULL;
             const BorrowOrigin* left_origins =
-                left->entries[index].borrow_origins;
+                merged.entries[index].borrow_origins;
             const BorrowOrigin* right_origins =
                 right->entries[index].borrow_origins;
             int has_mutable_origin =
                 semantic_snapshot_borrow_origins_have_mutable(left_origins) ||
                 semantic_snapshot_borrow_origins_have_mutable(right_origins);
             if (has_mutable_origin) {
-                /* Mutable parent/child graphs are not unionable: a union
-                   could invent a relationship that exists on no single path. */
                 if (!semantic_snapshot_borrow_origins_equal(
                         left_origins, right_origins)) {
                     report_error(ctx, slot->declaration_node,
@@ -2292,61 +2317,56 @@ static void semantic_reference_init_snapshot_merge(
             } else {
                 if (!semantic_snapshot_borrow_origins_union(
                         ctx, left_origins, right_origins, &union_origins))
-                    return;
+                    goto merge_failure;
                 semantic_snapshot_borrow_origins_destroy(
-                    left->entries[index].borrow_origins);
-                left->entries[index].borrow_origins = union_origins;
+                    merged.entries[index].borrow_origins);
+                merged.entries[index].borrow_origins = union_origins;
             }
-            if (left->entries[index].borrow_origin !=
+            if (merged.entries[index].borrow_origin !=
                 right->entries[index].borrow_origin)
-                left->entries[index].borrow_origin = NULL;
-            if (left->entries[index].borrow_suspended_by_identity !=
+                merged.entries[index].borrow_origin = NULL;
+            if (merged.entries[index].borrow_suspended_by_identity !=
                 right->entries[index].borrow_suspended_by_identity) {
                 report_error(ctx, slot->declaration_node,
                     ERR_SEMANTIC_TYPE_MISMATCH,
                     "Mutable reborrow parent/child relationships must match on every control-flow path; end the child borrow before the branch merge.");
-                left->entries[index].borrow_suspended_by_identity = 0u;
+                merged.entries[index].borrow_suspended_by_identity = 0u;
             }
-            slot->borrow_suspended_by_identity =
-                left->entries[index].borrow_suspended_by_identity;
-            left->entries[index].is_initialized = (uint8_t)(
-                left->entries[index].is_initialized &&
+            merged.entries[index].is_initialized = (uint8_t)(
+                merged.entries[index].is_initialized &&
                 right->entries[index].is_initialized);
-            slot->is_initialized = left->entries[index].is_initialized;
-            slot->is_moved = (uint8_t)(
-                left->entries[index].is_moved ||
-                right->entries[index].is_moved);
-            left->entries[index].is_moved = slot->is_moved;
-            slot->allocation_is_base = (uint8_t)(
-                left->entries[index].allocation_is_base &&
+            merged.entries[index].is_moved = (uint8_t)(
+                merged.entries[index].is_moved || right->entries[index].is_moved);
+            merged.entries[index].allocation_is_base = (uint8_t)(
+                merged.entries[index].allocation_is_base &&
                 right->entries[index].allocation_is_base);
-            left->entries[index].allocation_is_base = slot->allocation_is_base;
-            if (left->entries[index].allocation_identity !=
+            if (merged.entries[index].allocation_identity !=
                 right->entries[index].allocation_identity) {
                 report_error(ctx, slot->declaration_node,
                     ERR_SEMANTIC_TYPE_MISMATCH,
                     "Allocation handle identity differs across control-flow paths; use a single allocation identity on every path before accessing this binding.");
-                /* The merge diagnostic already rejects this program. Clear
-                   the ambiguous provenance so the later read does not emit a
-                   second, misleading use-after-release diagnostic. */
-                left->entries[index].allocation_identity = 0u;
+                merged.entries[index].allocation_identity = 0u;
             }
-            slot->allocation_identity =
-                left->entries[index].allocation_identity;
-            left->entries[index].is_nullable = (uint8_t)(
-                left->entries[index].is_nullable ||
+            merged.entries[index].is_nullable = (uint8_t)(
+                merged.entries[index].is_nullable ||
                 right->entries[index].is_nullable);
-            slot->is_nullable = left->entries[index].is_nullable;
-            if (left->entries[index].callable_declaration !=
-                right->entries[index].callable_declaration) {
-                left->entries[index].callable_declaration = NULL;
-                slot->callable_declaration = NULL;
-            } else {
-                slot->callable_declaration =
-                    left->entries[index].callable_declaration;
-            }
+            if (merged.entries[index].callable_declaration !=
+                right->entries[index].callable_declaration)
+                merged.entries[index].callable_declaration = NULL;
         }
     }
+
+    {
+        SemanticReferenceInitSnapshot previous = *left;
+        *left = merged;
+        memset(&merged, 0, sizeof(merged));
+        semantic_reference_init_snapshot_destroy(&previous);
+    }
+    return 1;
+
+merge_failure:
+    semantic_reference_init_snapshot_destroy(&merged);
+    return 0;
 }
 
 static void semantic_refine_nullable_binding_from_condition(
