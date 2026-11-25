@@ -10238,6 +10238,10 @@ static void semantic_check_node(
                     report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH,
                         "Relocation source has no active allocation identity.");
                 } else if (source_allocation &&
+                           !source_allocation_is_base) {
+                    report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH,
+                        "Relocation requires the allocation's base handle; an interior or offset pointer cannot transfer ownership.");
+                } else if (source_allocation &&
                            target_slot->function_depth !=
                                source_allocation->function_depth) {
                     report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH,
