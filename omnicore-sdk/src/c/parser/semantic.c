@@ -1833,6 +1833,46 @@ static int semantic_type_contains_safe_reference(
 }
 
 
+/* Allocation handles stored inside aggregates/containers need per-field or
+   per-element allocation identity metadata. Until that exists, reject such
+   storage rather than attributing the field to its containing allocation. */
+static int semantic_type_contains_allocation_handle(
+    SemanticContext* ctx, const char* type_name, unsigned int depth
+) {
+    const char* raw_type = type_name;
+    Slot* type_slot;
+    FieldInfo* field;
+    if (!ctx || !raw_type) return 0;
+    if (depth > 64u) return 1;
+    while (*raw_type == '!') ++raw_type;
+    if (strcmp(raw_type, "area") == 0 ||
+        strcmp(raw_type, "zone") == 0) return 1;
+    if (strncmp(raw_type, "f:", 2u) == 0) return 0;
+    if (strncmp(raw_type, "array|", 6u) == 0) {
+        const char* element_start = raw_type + 6u;
+        size_t element_length = strcspn(element_start, "[");
+        char element_type[256];
+        if (element_length == 0u) return 0;
+        if (element_length >= sizeof(element_type)) return 1;
+        memcpy(element_type, element_start, element_length);
+        element_type[element_length] = '\0';
+        return semantic_type_contains_allocation_handle(
+            ctx, element_type, depth + 1u);
+    }
+    type_slot = find_slot(ctx, raw_type);
+    if (!type_slot) return 0;
+    if (type_slot->kind == SLOT_NEWTYPE)
+        return semantic_type_contains_allocation_handle(
+            ctx, type_slot->type_name, depth + 1u);
+    if (type_slot->kind != SLOT_STRUCT && type_slot->kind != SLOT_UNION)
+        return 0;
+    for (field = type_slot->fields; field; field = field->next) {
+        if (semantic_type_contains_allocation_handle(
+                ctx, field->type_name, depth + 1u)) return 1;
+    }
+    return 0;
+}
+
 /* A callback signature is not reference storage, but exposing that
    signature through an untyped/extern/variadic boundary erases its lifetime
    contract. Keep that ABI rule separate from aggregate-storage inspection. */
@@ -4834,6 +4874,65 @@ static uint64_t semantic_expression_allocation_identity(
     SemanticContext* ctx, ASTNode* expression
 ) {
     return semantic_expression_allocation_identity_depth(ctx, expression, 0u, 0);
+}
+
+static int semantic_expression_contains_allocation_handle_depth(
+    SemanticContext* ctx, const ASTNode* expression, unsigned int depth
+) {
+    const ASTNode* current;
+    if (!ctx || !expression) return 0;
+    if (depth > 64u) return 1;
+    switch (expression->type) {
+        case AST_ARRAY_LITERAL:
+            for (current = ((const ASTArrayLiteral*)expression)->elements;
+                 current; current = current->next) {
+                if (semantic_expression_contains_allocation_handle_depth(
+                        ctx, current, depth + 1u)) return 1;
+            }
+            return 0;
+        case AST_TUPLE:
+            for (current = ((const ASTTuple*)expression)->elements;
+                 current; current = current->next) {
+                if (semantic_expression_contains_allocation_handle_depth(
+                        ctx, current, depth + 1u)) return 1;
+            }
+            return 0;
+        case AST_STRUCT_LITERAL:
+            for (current = ((const ASTStructLiteral*)expression)->fields;
+                 current; current = current->next) {
+                if (current->type == AST_STRUCT_FIELD_INIT &&
+                    semantic_expression_contains_allocation_handle_depth(
+                        ctx, ((const ASTStructFieldInit*)current)->value,
+                        depth + 1u)) return 1;
+            }
+            return 0;
+        case AST_NAMED_ARG:
+            return semantic_expression_contains_allocation_handle_depth(
+                ctx, ((const ASTNamedArg*)expression)->value, depth + 1u);
+        case AST_RELOCATE:
+            return semantic_expression_contains_allocation_handle_depth(
+                ctx, ((const ASTRelocate*)expression)->source, depth + 1u);
+        case AST_CAST: {
+            const ASTCast* cast = (const ASTCast*)expression;
+            if (cast->target_type &&
+                cast->target_type->type == AST_IDENTIFIER &&
+                semantic_is_raw_pointer_type_name(
+                    ((const ASTIdentifier*)cast->target_type)->name))
+                return 0;
+            return semantic_expression_contains_allocation_handle_depth(
+                ctx, cast->value, depth + 1u);
+        }
+        default:
+            return semantic_expression_allocation_identity(
+                ctx, (ASTNode*)expression) != 0u;
+    }
+}
+
+static int semantic_expression_contains_allocation_handle(
+    SemanticContext* ctx, const ASTNode* expression
+) {
+    return semantic_expression_contains_allocation_handle_depth(
+        ctx, expression, 0u);
 }
 
 static int semantic_expression_allocation_is_base_depth(
