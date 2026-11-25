@@ -1867,7 +1867,8 @@ static int check_allocation_handle_container_storage_rejection_semantics(void) {
         check_source(any_field_area_handle_assignment, 1) &&
         check_source(nested_any_field_area_handle_assignment, 1) &&
         check_source(inferred_array_area_handles, 1) &&
-        check_source(any_variable_area_handle, 1) &&\n        check_source(any_variable_area_handle_assignment, 1);
+        check_source(any_variable_area_handle, 1) &&
+        check_source(any_variable_area_handle_assignment, 1);
 }
 
 
