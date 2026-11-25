@@ -8250,7 +8250,6 @@ static int semantic_register_mutable_reborrow(
 ) {
     ASTNode* root = operand;
     Slot* parent;
-    const BorrowOrigin* parent_origin;
     const char* expected_type;
     const char* actual_type;
     const char* base_path;
