@@ -10326,6 +10326,15 @@ static void semantic_check_node(
                     report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH,
                         "Relocation destination already owns a different active allocation; release or relocate it first.");
                 } else {
+                    if (target_slot->relocation_origin &&
+                        !target_slot->relocation_used) {
+                        report_issue(ctx, target_slot->relocation_origin,
+                            ERR_SEMANTIC_TYPE_MISMATCH,
+                            "Relocated value is replaced before its new owner uses it.",
+                            "Use the relocated value before replacing it, or remove the unnecessary relocation.",
+                            "Use the relocated value before replacing it, or remove the unnecessary relocation.",
+                            0, 1);
+                    }
                     target_slot->relocation_origin = source_slot->relocation_origin
                         ? source_slot->relocation_origin : node;
                     target_slot->relocation_used = source_slot->relocation_used;
