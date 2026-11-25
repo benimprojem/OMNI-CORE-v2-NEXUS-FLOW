@@ -1876,6 +1876,7 @@ typedef struct SemanticReferenceInitEntry {
     Slot* slot;
     uint8_t is_initialized;
     uint8_t is_nullable;
+    uint8_t is_moved;
     ASTNode* callable_declaration;
     Slot* borrow_origin;
     uint64_t borrow_suspended_by_identity;
@@ -2056,6 +2057,7 @@ static int semantic_reference_init_snapshot_capture(
                 slot->allocation_identity;
             snapshot->entries[index].is_initialized = slot->is_initialized;
             snapshot->entries[index].is_nullable = slot->is_nullable;
+            snapshot->entries[index].is_moved = slot->is_moved;
             snapshot->entries[index].callable_declaration =
                 slot->callable_declaration;
             snapshot->entries[index].borrow_origin = slot->borrow_origin;
@@ -2205,6 +2207,7 @@ static void semantic_reference_init_snapshot_restore(
             snapshot->entries[index].borrow_suspended_by_identity;
         slot->is_initialized = snapshot->entries[index].is_initialized;
         slot->is_nullable = snapshot->entries[index].is_nullable;
+        slot->is_moved = snapshot->entries[index].is_moved;
         slot->allocation_identity =
             snapshot->entries[index].allocation_identity;
         slot->callable_declaration =
@@ -2307,6 +2310,10 @@ static void semantic_reference_init_snapshot_merge(
                 left->entries[index].is_initialized &&
                 right->entries[index].is_initialized);
             slot->is_initialized = left->entries[index].is_initialized;
+            slot->is_moved = (uint8_t)(
+                left->entries[index].is_moved ||
+                right->entries[index].is_moved);
+            left->entries[index].is_moved = slot->is_moved;
             if (left->entries[index].allocation_identity !=
                 right->entries[index].allocation_identity) {
                 report_error(ctx, slot->declaration_node,
