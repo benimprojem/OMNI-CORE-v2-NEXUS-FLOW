@@ -8836,7 +8836,8 @@ static void semantic_check_node(
             ASTIdentifier* id = (ASTIdentifier*)node;
             Slot* resolved = find_slot(ctx, id->name);
             if (resolved && resolved->allocation_identity != 0u &&
-                !semantic_find_active_allocation(ctx, resolved->allocation_identity)) {
+                !semantic_find_active_allocation(ctx, resolved->allocation_identity) &&
+                ctx->assignment_target_depth == 0u) {
                 char allocation_message[320];
                 (void)snprintf(allocation_message, sizeof(allocation_message),
                     "Allocation handle '%s' is no longer valid; its allocation was released or its lifetime was terminated.",
@@ -10066,7 +10067,9 @@ static void semantic_check_node(
             const char* source_type;
             const char* target_type;
             semantic_check(ctx,relocate->source);
+            ++ctx->assignment_target_depth;
             semantic_check(ctx,relocate->target);
+            --ctx->assignment_target_depth;
             source_type=get_expr_type(ctx,relocate->source);
             target_type=get_expr_type(ctx,relocate->target);
             if(relocate->source && relocate->source->type==AST_IDENTIFIER)
