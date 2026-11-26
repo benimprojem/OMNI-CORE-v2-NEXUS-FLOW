@@ -1884,12 +1884,12 @@ static int check_raw_pointer_initialization_and_nullability_semantics(void) {
 static int check_interprocedural_allocation_free_effects(void) {
     const char* direct_free_effect =
         "v:handle = area(16); "
-        "f:release() { free(handle); } "
-        "f:main() { release(); echo(handle); }";
+        "f:cleanup() { free(handle); } "
+        "f:main() { cleanup(); echo(handle); }";
     const char* transitive_free_effect =
         "v:handle = area(16); "
-        "f:release() { free(handle); } "
-        "f:wrapper() { release(); } "
+        "f:cleanup() { free(handle); } "
+        "f:wrapper() { cleanup(); } "
         "f:main() { wrapper(); echo(handle); }";
     const char* local_alias_free_is_rejected =
         "v:handle = area(16); "
@@ -1897,8 +1897,8 @@ static int check_interprocedural_allocation_free_effects(void) {
         "f:main() { release(); }";
     const char* repeated_free_effect_is_rejected =
         "v:handle = area(16); "
-        "f:release() { free(handle); } "
-        "f:main() { release(); release(); }";
+        "f:cleanup() { free(handle); } "
+        "f:main() { cleanup(); cleanup(); }";
     return check_source(direct_free_effect, 1) &&
         check_source(transitive_free_effect, 1) &&
         check_source(local_alias_free_is_rejected, 1) &&
