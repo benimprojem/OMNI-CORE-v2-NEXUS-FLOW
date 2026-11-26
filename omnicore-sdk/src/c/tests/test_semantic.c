@@ -814,7 +814,7 @@ static int check_thread_api_is_module_call(void) {
             "f:main() { (worker)>{ } (worker)>{ } }", 1) &&
         check_source(
             "f:main() { v:outside = area(16); "
-            "(worker)>{ (h) <- copy(outside); } spawn(worker); }", 1) &&
+            "(worker)>{ (h) <- copy(outside); } spawn(worker); free(outside); }", 1) &&
         check_source(
             "f:main() { v:owner!i32 = 1; &outside!i32 = &owner; "
             "(worker)>{ (h) <- copy(outside); } spawn(worker); }", 1) &&
@@ -4295,10 +4295,10 @@ static int check_function_allocation_cleanup(void) {
     }
     semantic_init(&semantic, "allocation-frame.nxf", NULL);
     semantic_check(&semantic, (ASTNode*)parser->ast_root);
-    ok = semantic.error_count == 0 && semantic.active_allocations == NULL;
+    ok = semantic.error_count == 1 && semantic.active_allocations == NULL;
     if (!ok) {
         fprintf(stderr,
-            "Function-local allocation registry was not empty after normal function exit. errors=%d active=%p\\n",
+            "Unreleased function allocation was not diagnosed and cleaned at function exit. errors=%d active=%p\\n",
             semantic.error_count, (void*)semantic.active_allocations);
     }
     semantic_destroy(&semantic);
@@ -4526,10 +4526,10 @@ static int check_intrinsic_semantics(void) {
     const char* allocation_alias_use_after_free =
         "f:main() { v:a = area(64); v:b = a; free(a); echo(b); }";
     const char* allocation_new_identity_after_reuse =
-        "f:main() { v:a = area(64); free(a); v:b = area(64); echo(b); }";
+        "f:main() { v:a = area(64); free(a); v:b = area(64); echo(b); free(b); }";
     const char* allocation_old_alias_stays_invalid =
         "f:main() { v:a = area(64); v:old = a; free(a); "
-        "v:b = area(64); echo(old); echo(b); }";
+        "v:b = area(64); echo(old); echo(b); free(b); }";
     const char* allocation_rebinding_same_slot_does_not_revive_alias =
         "f:main() { v:a = area(64); v:old = a; free(a); "
         "a = area(64); echo(old); echo(a); free(a); }";
@@ -4580,7 +4580,7 @@ static int check_intrinsic_semantics(void) {
         "v:p!RawI32 = cast(addr(a),RawI32); free(p); }";
     const char* allocation_pointer_cast_interior_release_rejected =
         "nt:RawI32 = *i32; f:main() { v:a = area(64); "
-        "v:p!RawI32 = cast(addr(a) + 4,RawI32); free(p); }";
+        "v:p!RawI32 = cast(addr(a) + 4,RawI32); free(p); free(a); }";
     const char* allocation_scope_exit_without_release_rejected =
         "f:main() { v:a = area(64); }";
     const char* allocation_nested_scope_exit_without_release_rejected =
@@ -4592,14 +4592,14 @@ static int check_intrinsic_semantics(void) {
     const char* allocation_release_base_address =
         "f:main() { v:a = area(64); release(addr(a)); }";
     const char* allocation_release_invalid_interior_address =
-        "f:main() { v:a = area(64); release(addr(a) + 4); }";
+        "f:main() { v:a = area(64); release(addr(a) + 4); free(a); }";
     const char* allocation_release_invalid_untracked_address =
         "f:main() { release(4096); }";
     const char* allocation_release_invalidates_all_aliases =
         "f:main() { v:a = area(64); v:p = addr(a); "
         "release(addr(a)); echo(p); }";
     const char* allocation_return_escape_rejected =
-        "f:make() { v:a = area(64); ret addr(a); }";
+        "f:make() { v:a = area(64); ret addr(a); free(a); }";
     const char* allocation_double_free =
         "f:main() { v:a = area(64); free(a); free(a); }";
     const char* allocation_branch_release_is_not_live_after_join =
@@ -4607,7 +4607,7 @@ static int check_intrinsic_semantics(void) {
         "if (cond) { free(a); } els { echo(a); } echo(a); }";
     const char* allocation_branch_live_on_all_paths =
         "f:check(cond!bool) { v:a = area(64); "
-        "if (cond) { echo(a); } els { echo(a); } echo(a); }";
+        "if (cond) { echo(a); } els { echo(a); } echo(a); free(a); }";
     const char* allocation_branch_identity_mismatch =
         "f:check(cond!bool) { v:a = area(64); v:b = area(32); v:c = area(128); "
         "if (cond) { a = b; } els { a = c; } echo(a); }";
@@ -4626,16 +4626,16 @@ static int check_intrinsic_semantics(void) {
         "{ v:inner = area(64); v:moved = inner _> outer; echo(outer); } "
         "free(outer); }";
     const char* allocation_relocate_into_owned_destination_rejected =
-        "f:main() { v:a = area(64); v:b = area(32); v:moved = a _> b; }";
+        "f:main() { v:a = area(64); v:b = area(32); v:moved = a _> b; free(a); free(b); }";
     const char* allocation_relocate_across_function_frame_rejected =
         "v:global_area = area(64); "
         "f:move() { v:local = area(32); v:moved = local _> global_area; }";
     const char* allocation_relocate_interior_pointer_rejected =
         "f:main() { v:a = area(64); v:base = addr(a); "
-        "v:interior = base + 4; v:moved = interior _> base; }";
+        "v:interior = base + 4; v:moved = interior _> base; free(a); }";
     const char* allocation_relocate_cannot_outlive_other_alias =
         "f:main() { v:a = area(64); v:alias = a; "
-        "{ v:inner = area(32); v:moved = a _> inner; } echo(alias); }";
+        "{ v:inner = area(32); v:moved = a _> inner; free(inner); } echo(alias); free(a); }";
     const char* invalid_area =
         "f:main() { v:a = area(0); }";
     const char* invalid_zone_type =
@@ -4656,10 +4656,10 @@ static int check_intrinsic_semantics(void) {
         "f:main() { echo(global_a); free(global_a); }";
     const char* local_allocation_cannot_escape_to_outer_binding =
         "f:main() { v:outer = area(32); "
-        "{ v:inner = area(64); outer = inner; } echo(outer); }";
+        "{ v:inner = area(64); outer = inner; free(inner); } echo(outer); free(outer); }";
     const char* function_local_allocation_cannot_escape_to_global =
         "v:global_area = area(64); "
-        "f:leak() { global_area = area(32); }";
+        "f:leak() { v:local = area(32); global_area = local; free(local); }";
     const char* halt_stops_current_table =
         "f:main() { ?; v:unreachable = missing_after_halt; }";
     const char* halt_is_local_to_nested_table =
@@ -4710,10 +4710,10 @@ static int check_intrinsic_semantics(void) {
         check_source(allocation_double_free, 1) &&
         check_source(allocation_branch_release_is_not_live_after_join, 1) &&
         check_source(allocation_branch_live_on_all_paths, 0) &&
-        check_source(allocation_branch_identity_mismatch, 1) &&
-        check_source(allocation_loop_backedge_identity_mismatch, 1) &&
-        check_source(allocation_loop_may_release_alias, 1) &&
-        check_source(allocation_nested_loop_may_release_alias, 1) &&
+        check_source(allocation_branch_identity_mismatch, -1) &&
+        check_source(allocation_loop_backedge_identity_mismatch, -1) &&
+        check_source(allocation_loop_may_release_alias, -1) &&
+        check_source(allocation_nested_loop_may_release_alias, -1) &&
         check_source(allocation_relocate_to_outer_scope, 0) &&
         check_source(allocation_relocate_into_owned_destination_rejected, 1) &&
         check_source(allocation_relocate_across_function_frame_rejected, 1) &&
