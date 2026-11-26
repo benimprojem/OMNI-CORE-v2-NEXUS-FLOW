@@ -2800,26 +2800,69 @@ allocation_failure:
     return 0;
 }
 
-/* Preserve each branch as an independent feasible state. */
+static int semantic_allocation_path_equal(
+    const AllocationPathState* left, const AllocationPathState* right
+) {
+    const ActiveAllocation* current;
+    size_t left_count = 0u, right_count = 0u;
+    if (!left || !right) return left == right;
+    for (current = left->allocations; current; current = current->next)
+        ++left_count;
+    for (current = right->allocations; current; current = current->next)
+        ++right_count;
+    if (left_count != right_count) return 0;
+    for (current = left->allocations; current; current = current->next) {
+        const ActiveAllocation* candidate;
+        for (candidate = right->allocations; candidate; candidate = candidate->next)
+            if (candidate->identity == current->identity &&
+                candidate->function_depth == current->function_depth &&
+                candidate->scope_depth == current->scope_depth)
+                break;
+        if (!candidate) return 0;
+    }
+    return 1;
+}
+
+/* Preserve each distinct branch as an independent feasible state. */
 static int semantic_allocation_paths_merge(
     SemanticContext* ctx, const AllocationPathState* left,
     const AllocationPathState* right, AllocationPathState** output
 ) {
     AllocationPathState* head = NULL;
     AllocationPathState* tail = NULL;
-    AllocationPathState* right_copy = NULL;
+    const AllocationPathState* source;
     if (!ctx || !output) return 0;
     *output = NULL;
     if (!semantic_allocation_paths_clone(ctx, left, &head)) return 0;
     for (tail = head; tail && tail->next; tail = tail->next) {}
-    if (!semantic_allocation_paths_clone(ctx, right, &right_copy)) {
-        semantic_allocation_paths_destroy(head);
-        return 0;
+    for (source = right; source; source = source->next) {
+        AllocationPathState* existing;
+        AllocationPathState* copy;
+        int duplicate = 0;
+        for (existing = head; existing; existing = existing->next) {
+            if (semantic_allocation_path_equal(existing, source)) {
+                duplicate = 1;
+                break;
+            }
+        }
+        if (duplicate) continue;
+        copy = (AllocationPathState*)semantic_callocate(ctx, 1u, sizeof(*copy));
+        if (!copy) goto allocation_failure;
+        if (!semantic_snapshot_allocations_clone(
+                ctx, source->allocations, &copy->allocations)) {
+            free(copy);
+            goto allocation_failure;
+        }
+        if (tail) tail->next = copy;
+        else head = copy;
+        tail = copy;
     }
-    if (!head) head = right_copy;
-    else if (right_copy) tail->next = right_copy;
     *output = head;
     return 1;
+allocation_failure:
+    semantic_allocation_paths_destroy(head);
+    semantic_set_result_error(ctx, SEMANTIC_RESULT_OUT_OF_MEMORY);
+    return 0;
 }
 
 static void semantic_reference_init_snapshot_destroy(
@@ -11457,26 +11500,27 @@ static void semantic_check_node(
                     semantic_reference_init_snapshot_restore(ctx, &before_state);
                 }
             } else if (before_captured) {
-                /* With no else, the false path always continues. If the true
-                   branch terminates, only the refined false path survives. */
-                if (then_captured && then_terminates) {
-                    /* The false refinement is already active. */
-                } else if (then_captured) {
-                    SemanticReferenceInitSnapshot false_state = {0};
-                    if (semantic_reference_init_snapshot_capture(
-                            ctx, &false_state)) {
+                /* The implicit false arm starts from the pre-branch state,
+                   never from the state produced by the true arm. */
+                SemanticReferenceInitSnapshot false_state = {0};
+                semantic_reference_init_snapshot_restore(ctx, &before_state);
+                semantic_refine_nullable_binding_from_condition(
+                    ctx, conditional->condition, 0);
+                if (semantic_reference_init_snapshot_capture(
+                        ctx, &false_state)) {
+                    if (then_captured && !then_terminates) {
                         if (semantic_reference_init_snapshot_merge(
                                 ctx, &then_state, &false_state))
                             semantic_reference_init_snapshot_restore(ctx, &then_state);
                         else
                             semantic_reference_init_snapshot_restore(ctx, &before_state);
                     } else {
-                        semantic_reference_init_snapshot_restore(ctx, &before_state);
+                        semantic_reference_init_snapshot_restore(ctx, &false_state);
                     }
-                    semantic_reference_init_snapshot_destroy(&false_state);
                 } else {
                     semantic_reference_init_snapshot_restore(ctx, &before_state);
                 }
+                semantic_reference_init_snapshot_destroy(&false_state);
             }
             semantic_reference_init_snapshot_destroy(&before_state);
             semantic_reference_init_snapshot_destroy(&then_state);
