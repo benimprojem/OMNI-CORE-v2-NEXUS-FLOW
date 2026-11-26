@@ -1552,3 +1552,13 @@ Status: **VERIFIED — Handler relocation slice**. This does not close the remai
 - Commits: `6537b5c4` (allocation state), `5ef44ddf` (branch merge), `247a88bb` (terminal branch state), `86649154` (return edge), `ac1ab0c1` (reject maybe-live release), `e1898237` (break/continue path merge); tests `158b5402`, `46364374`, `45e8a134`, `678ab7ab`, `0a009f09` (expanded OOM sweep), `71b44c9c` (conditional break).
 - Exact-head CI is still unavailable: draft validation PR [#4](https://github.com/benimprojem/OMNI-CORE-v2-NEXUS-FLOW/pull/4) currently reports no workflow run/status for its head.
 - Status: **IN_PROGRESS — NOT VERIFIED**. Full loop back-edge/break/continue state validation, global interprocedural effect closure, remaining return/branch joins and exact-head CI remain open. OIR remains gated.
+
+
+### SEM-005 — Allocation control-flow model correction (2026-11-26)
+
+- Design correction: the current `may_be_released` flag is not the intended final semantic model. A runtime condition selects one concrete branch; a `free()` executed on that path is a definite release on that path, never a probabilistic or ambiguous release.
+- The Semantic analyzer must preserve distinct feasible allocation states across control-flow alternatives. At a branch join, it must retain the alternative states (including path-specific released/live states) rather than collapsing them into a single maybe-live allocation record.
+- A later operation is valid only if it is valid in every feasible incoming state. If every branch releases an allocation, all joined states are released. If one branch releases and another does not, the states remain distinct; subsequent use/release must be checked against each path, and scope-exit diagnostics must identify the still-live path.
+- Different statements and side effects inside the branches do not alter this rule. Both branches may release the same allocation after performing different work; each branch's own state is authoritative.
+- This supersedes the preceding checkpoint's `may_be_released` representation as a design decision. Existing tests that merely expect a blanket rejection after a one-sided release must be revisited and rewritten to assert path-by-path behavior and correct diagnostics.
+- Implementation is not yet changed by this design note. SEM-005 remains **IN_PROGRESS — NOT VERIFIED**; OIR remains gated. Next implementation unit: introduce explicit allocation-state alternatives in Semantic snapshots and propagate them through if/elsif, loop back-edge, break/continue, return and interprocedural function-effect summaries.
