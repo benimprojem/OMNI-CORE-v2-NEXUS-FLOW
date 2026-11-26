@@ -2934,10 +2934,11 @@ v:shared = zone(size);
 ### 35.7 release, free ve defer
 
 ~~~nxf
-free(resource);
+release(addr(resource));
+free(resource); // Eski yazım
 
 defer {
-    release(resource);
+    release(addr(resource));
 }
 ~~~
 
