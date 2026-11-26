@@ -4765,6 +4765,16 @@ static void semantic_validate_reg_intrinsic(
     }
 }
 
+static ActiveAllocation* semantic_find_allocation_record(
+    const SemanticContext* ctx, uint64_t identity
+) {
+    ActiveAllocation* current;
+    if (!ctx || identity == 0u) return NULL;
+    for (current = ctx->active_allocations; current; current = current->next)
+        if (current->identity == identity) return current;
+    return NULL;
+}
+
 static ActiveAllocation* semantic_find_active_allocation(
     const SemanticContext* ctx, uint64_t identity
 ) {
@@ -4831,6 +4841,7 @@ static int semantic_release_allocation(
     while (*link) {
         ActiveAllocation* current = *link;
         if (current->identity == identity) {
+            if (current->may_be_released) return 0;
             *link = current->next;
             free(current);
             return 1;
@@ -12830,9 +12841,17 @@ static void semantic_check_node(
                     ASTNode* value = semantic_intrinsic_argument_value(call->args);
                     uint64_t identity = semantic_expression_allocation_identity(ctx, value);
                     if (identity != 0u) {
+                        ActiveAllocation* record =
+                            semantic_find_allocation_record(ctx, identity);
                         ActiveAllocation* active =
                             semantic_find_active_allocation(ctx, identity);
-                        if (active &&
+                        if (record && record->may_be_released) {
+                            report_error(ctx, value, ERR_SEMANTIC_TYPE_MISMATCH,
+                                "free() cannot release an allocation that may already be released on another control-flow path.");
+                        } else if (!active) {
+                            report_error(ctx, value, ERR_SEMANTIC_TYPE_MISMATCH,
+                                "free() requires an allocation identity that is definitely active on every control-flow path.");
+                        } else if (active &&
                             semantic_allocation_has_active_borrows(ctx, identity) &&
                             !semantic_free_uses_sole_handle_reference_borrow(
                                 ctx, identity, value)) {
