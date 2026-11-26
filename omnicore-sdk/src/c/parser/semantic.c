@@ -11438,13 +11438,6 @@ static void semantic_check_node(
             }
             if (ret->operand) semantic_check(ctx, ret->operand);
 
-            /* ret is an exit edge: later statements cannot close allocations
-               that are still owned by this function on this path. */
-            semantic_check_function_allocations_closed(
-                ctx, (uint32_t)ctx->function_depth);
-            semantic_release_function_allocations(
-                ctx, (uint32_t)ctx->function_depth);
-
             if (ret->operand) {
                 uint64_t returned_allocation_identity =
                     semantic_expression_allocation_identity(ctx, ret->operand);
@@ -11497,6 +11490,14 @@ static void semantic_check_node(
                     report_error(ctx, node, ERR_SEMANTIC_RETURN_MISMATCH, buf);
                 }
             }
+            /* ret is an exit edge: later statements cannot close allocations
+               that are still owned by this function on this path. Check after
+               return-value provenance validation, then discard this path's
+               function-local allocation state for branch-flow restoration. */
+            semantic_check_function_allocations_closed(
+                ctx, (uint32_t)ctx->function_depth);
+            semantic_release_function_allocations(
+                ctx, (uint32_t)ctx->function_depth);
             break;
         }
 
