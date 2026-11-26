@@ -53,6 +53,7 @@ typedef struct BorrowOrigin {
 typedef struct SemanticFunctionAllocationEffect {
     uint64_t target_slot_identity; /* Stable SemanticContext-local identity of the outer binding. */
     const ASTNode* free_origin; /* Borrowed source location of the free operation. */
+    uint8_t is_conditional; /* 1: released on some, but not all, feasible function exits. */
     struct SemanticFunctionAllocationEffect* next;
 } SemanticFunctionAllocationEffect;
 
