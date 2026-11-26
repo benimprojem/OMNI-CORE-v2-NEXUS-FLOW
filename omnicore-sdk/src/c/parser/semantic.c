@@ -13053,7 +13053,8 @@ static void semantic_check_node(
                       is_numeric_primitive_type(source_type)) &&
                     !(semantic_type_is_raw_pointer(ctx, target_name, 0u) &&
                       (semantic_type_is_raw_pointer(ctx, source_type, 0u) ||
-                       semantic_type_contains_safe_reference(ctx, source_type, 0u)))) {
+                       semantic_type_contains_safe_reference(ctx, source_type, 0u) ||
+                       semantic_is_integer_or_address_type(ctx, source_type))) {
                     char message[320];
                     (void)snprintf(message, sizeof(message),
                         "cast() cannot convert source type '%s' to target type '%s'; only compatible values, explicit numeric conversions and raw-pointer escapes are supported.",
