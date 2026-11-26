@@ -884,7 +884,8 @@ Bu çağrılar tarih, güncel zaman veya saat sayacı bilgisi almak için kullan
 ## 12.9 Kaynak bırakma ve sonlandırma
 
 ~~~nxf
-free(resource);
+release(addr(resource));
+free(resource); // Eski yazım; geriye dönük uyumluluk
 panic("fatal error");
 exit(0);
 ~~~
