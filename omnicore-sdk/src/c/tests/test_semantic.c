@@ -4599,7 +4599,7 @@ static int check_intrinsic_semantics(void) {
         "f:main() { v:a = area(64); v:p = addr(a); "
         "release(addr(a)); echo(p); }";
     const char* allocation_return_escape_rejected =
-        "f:make() { v:a = area(64); ret addr(a); free(a); }";
+        "f:make() { v:a = area(64); ret addr(a); }";
     const char* allocation_double_free =
         "f:main() { v:a = area(64); free(a); free(a); }";
     const char* allocation_branch_release_is_not_live_after_join =
@@ -4629,7 +4629,8 @@ static int check_intrinsic_semantics(void) {
         "f:main() { v:a = area(64); v:b = area(32); v:moved = a _> b; free(a); free(b); }";
     const char* allocation_relocate_across_function_frame_rejected =
         "v:global_area = area(64); "
-        "f:move() { v:local = area(32); v:moved = local _> global_area; free(local); }";
+        "f:move() { v:local = area(32); v:moved = local _> global_area; free(local); } "
+        "f:main() { free(global_area); }";
     const char* allocation_relocate_interior_pointer_rejected =
         "f:main() { v:a = area(64); v:base = addr(a); "
         "v:interior = base + 4; v:moved = interior _> base; free(a); }";
@@ -4649,7 +4650,7 @@ static int check_intrinsic_semantics(void) {
         "f:main() { echo(global_area); free(global_area); }";
     const char* function_analysis_does_not_consume_global_allocation =
         "v:global_area = area(64); f:cleanup() { free(global_area); } "
-        "f:main() { echo(global_area); }";
+        "f:main() { echo(global_area); free(global_area); }";
     const char* function_analysis_does_not_commit_global_relocation =
         "v:global_a = area(64); v:global_b = area(32); free(global_b); "
         "f:move() { v:moved = global_a _> global_b; } "
@@ -4659,7 +4660,8 @@ static int check_intrinsic_semantics(void) {
         "{ v:inner = area(64); outer = inner; free(inner); } echo(outer); free(outer); }";
     const char* function_local_allocation_cannot_escape_to_global =
         "v:global_area = area(64); "
-        "f:leak() { v:local = area(32); global_area = local; free(local); }";
+        "f:leak() { v:local = area(32); global_area = local; free(local); } "
+        "f:main() { free(global_area); }";
     const char* halt_stops_current_table =
         "f:main() { ?; v:unreachable = missing_after_halt; }";
     const char* halt_is_local_to_nested_table =
@@ -4706,7 +4708,7 @@ static int check_intrinsic_semantics(void) {
         check_source(allocation_release_invalid_interior_address, 1) &&
         check_source(allocation_release_invalid_untracked_address, 1) &&
         check_source(allocation_release_invalidates_all_aliases, 1) &&
-        check_source(allocation_return_escape_rejected, 1) &&
+        check_source(allocation_return_escape_rejected, 2) &&
         check_source(allocation_double_free, 1) &&
         check_source(allocation_branch_release_is_not_live_after_join, 1) &&
         check_source(allocation_branch_live_on_all_paths, 0) &&
