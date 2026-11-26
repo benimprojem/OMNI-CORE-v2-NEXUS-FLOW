@@ -53,9 +53,14 @@ typedef struct BorrowOrigin {
 typedef struct SemanticFunctionAllocationEffect {
     uint64_t target_slot_identity; /* Stable SemanticContext-local identity of the outer binding. */
     const ASTNode* free_origin; /* Borrowed source location of the free operation. */
-    uint8_t is_conditional; /* 1: released on some, but not all, feasible function exits. */
     struct SemanticFunctionAllocationEffect* next;
 } SemanticFunctionAllocationEffect;
+
+/* One correlated set of releases observed on a single feasible function exit. */
+typedef struct SemanticFunctionAllocationAlternative {
+    SemanticFunctionAllocationEffect* effects;
+    struct SemanticFunctionAllocationAlternative* next;
+} SemanticFunctionAllocationAlternative;
 
 struct Slot {
     char* name;
@@ -95,7 +100,7 @@ struct Slot {
     const ASTNode* group_owner; /* Non-owning Group declaration that owns private nominal types. */
     const ASTNode* fast_exec_owner; /* Non-owning FASTEXEC block that owns ASM labels. */
     uint32_t type_id;
-    SemanticFunctionAllocationEffect* allocation_effects; /* Conservative interprocedural free summary. */
+    SemanticFunctionAllocationAlternative* allocation_alternatives; /* Correlated interprocedural free-effect paths. */
     struct Slot* next;
 };
 
