@@ -889,7 +889,7 @@ panic("fatal error");
 exit(0);
 ~~~
 
-free bir kaynağı serbest bırakma isteğini ifade eder. panic hata nedeniyle yürütmeyi durdurma; exit programdan çıkma amacıyla kullanılır.
+release(address) verilen adresin temsil ettiği allocation’ı serbest bırakır. Allocation taban adresi verilmelidir; iç/offset adresler ve izlenemeyen ham adresler kabul edilmez. release işleminden sonra aynı allocation’a ait bütün alias’lar geçersiz olur. free(resource) eski yazım olarak korunur; yeni kodda release(addr(resource)) tercih edilir. panic hata nedeniyle yürütmeyi durdurma; exit programdan çıkma amacıyla kullanılır.
 
 ## 12.10 Thread işlemleri
 
@@ -1279,7 +1279,7 @@ exit programdan çıkmak için kullanılır. Parametrenin anlamı çalışma ort
 ~~~nxf
 defer cleanup();
 defer {
-    release(resource);
+    release(addr(resource));
 }
 ~~~
 
@@ -2930,7 +2930,7 @@ v:shared = zone(size);
 - Bunlar belirli CPU cache seviyeleri veya fiziksel RAM bölgeleri garantisi değildir.
 - Tahsis, hizalama, paylaşım, fiziksel eşleme ve cleanup target/runtime bellek modeline bağlıdır.
 
-### 35.7 free ve defer
+### 35.7 release, free ve defer
 
 ~~~nxf
 free(resource);
@@ -2940,7 +2940,10 @@ defer {
 }
 ~~~
 
-- free(resource) kaynak serbest bırakma isteğidir; kaynak türünün serbest bırakılabilir olması gerekir.
+- release(address) allocation’ın taban adresini alır ve ilgili allocation kimliğini serbest bırakır.
+- İç/offset adresler, başka allocation’a ait adresler ve provenance bilgisi olmayan ham adresler reddedilir.
+- Serbest bırakma sonrasında aynı allocation’a bağlı tüm pointer/handle alias’ları geçersizdir.
+- free(resource) eski yazım olarak geriye dönük uyumluluk için korunur; yeni kodda release(addr(resource)) tercih edilir.
 - defer { ... } kapsamdan çıkışta çalıştırılacak cleanup gövdesini tanımlar.
 - Birden fazla defer'in LIFO/FIFO davranışı ve panic/jump/ret durumlarındaki ayrıntılar kısmen tanımlıdır. Cleanup ile ownership kuralları çelişmemelidir.
 
