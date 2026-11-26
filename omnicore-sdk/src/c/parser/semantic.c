@@ -14,6 +14,10 @@ static void semantic_release_all_allocations(SemanticContext* ctx);
 static void semantic_release_scope_allocations(
     SemanticContext* ctx, uint32_t scope_depth
 );
+static void semantic_check_scope_allocations_closed(
+    SemanticContext* ctx, uint32_t scope_depth, int explicitly_halted
+);
+static void exit_scope_internal(SemanticContext* ctx, int explicitly_halted);
 static void semantic_snapshot_allocations_destroy(ActiveAllocation* allocations);
 static int semantic_snapshot_allocations_clone(
     SemanticContext* ctx, const ActiveAllocation* source,
@@ -1386,7 +1390,7 @@ static void enter_scope(SemanticContext* ctx, ASTNode* owner_node) {
     ctx->current_depth++;
 }
 
-static void exit_scope(SemanticContext* ctx) {
+static void exit_scope_internal(SemanticContext* ctx, int explicitly_halted) {
     if (!ctx) return;
 
     /* A successful ownership transfer that reaches scope exit without any
@@ -1416,7 +1420,11 @@ static void exit_scope(SemanticContext* ctx) {
         }
     }
 
-    /* Allocation-backed storage ends with its lexical owner scope. */
+    /* A plain lexical close is not an implicit free. A matching }?; is
+       an explicit table termination and may close this scope. */
+    semantic_check_scope_allocations_closed(
+        ctx, (uint32_t)(ctx->current_depth < 0 ? 0 : ctx->current_depth),
+        explicitly_halted);
     semantic_release_scope_allocations(
         ctx, (uint32_t)(ctx->current_depth < 0 ? 0 : ctx->current_depth));
 
@@ -1438,6 +1446,10 @@ static void exit_scope(SemanticContext* ctx) {
         }
     }
     ctx->current_depth--;
+}
+
+static void exit_scope(SemanticContext* ctx) {
+    exit_scope_internal(ctx, 0);
 }
 
 static int are_types_compatible(SemanticContext* ctx, const char* type1, const char* type2);
@@ -4806,6 +4818,24 @@ static void semantic_release_all_allocations(SemanticContext* ctx) {
         ActiveAllocation* next = current->next;
         free(current);
         current = next;
+    }
+}
+
+static void semantic_check_scope_allocations_closed(
+    SemanticContext* ctx, uint32_t scope_depth, int explicitly_halted
+) {
+    ActiveAllocation* current;
+    if (!ctx || explicitly_halted) return;
+    for (current = ctx->active_allocations; current; current = current->next) {
+        if (current->scope_depth == scope_depth &&
+            current->function_depth == ctx->function_depth) {
+            report_issue(ctx, (ASTNode*)current->origin,
+                ERR_SEMANTIC_TYPE_MISMATCH,
+                "Allocation leaves its owning scope without an explicit release.",
+                "Use release(addr(value)) / free(value), or terminate the owning table with ?; or }?; before leaving the scope.",
+                "The allocation is still active at the closing scope boundary. Every control-flow path must explicitly end its lifetime.",
+                0, 0);
+        }
     }
 }
 
@@ -11330,18 +11360,20 @@ static void semantic_check_node(
 
         case AST_BLOCK: {
             ASTBlock* block = (ASTBlock*)node;
+            int followed_by_halt =
+                follow_siblings && node->next &&
+                node->next->type == AST_BLOCK_HALT;
             enter_scope(ctx, node);
             semantic_check(ctx, block->statements);
-            exit_scope(ctx);
+            exit_scope_internal(ctx, followed_by_halt);
             break;
         }
 
         case AST_BLOCK_HALT:
-            /* Halt terminates this block's statement flow. Resource lifetime
-               invalidation is handled by the SEM-005 ownership pass. */
+            /* The immediately preceding AST_BLOCK already closed its scope
+               through the explicit-halt path. Do not release outer owners. */
             semantic_record_annotation(
                 ctx, node, NULL, "void", SEMANTIC_RESULT_VALUE_RVALUE);
-            semantic_release_function_allocations(ctx, (uint32_t)ctx->function_depth);
             ctx->halted_function_depth = (uint32_t)ctx->function_depth;
             break;
 
@@ -12577,7 +12609,9 @@ static void semantic_check_node(
         case AST_NEXUS_HALT: {
             ASTHalt* halt = (ASTHalt*)node;
             if (halt->expr) semantic_check(ctx, halt->expr);
-            semantic_release_function_allocations(ctx, (uint32_t)ctx->function_depth);
+            /* ?; terminates only the currently active table/scope. */
+            semantic_release_scope_allocations(
+                ctx, (uint32_t)(ctx->current_depth < 0 ? 0 : ctx->current_depth));
             ctx->halted_function_depth = (uint32_t)ctx->function_depth;
             break;
         }
