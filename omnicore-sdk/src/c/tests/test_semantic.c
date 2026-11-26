@@ -4428,6 +4428,7 @@ static int check_allocation_identity_never_reused(void) {
     Slot* a = NULL;
     Slot* b = NULL;
     Slot* slot;
+    AllocationPathState* path;
     ActiveAllocation* active;
     int old_identity_is_inactive = 1;
     int new_identity_is_active = 0;
@@ -4444,16 +4445,18 @@ static int check_allocation_identity_never_reused(void) {
         if (slot->name && strcmp(slot->name, "b") == 0) b = slot;
     }
     if (a && a->allocation_identity != 0u) {
-        for (active = semantic.active_allocations; active; active = active->next)
-            if (active->identity == a->allocation_identity)
-                old_identity_is_inactive = 0;
+        for (path = semantic.allocation_paths; path; path = path->next)
+            for (active = path->allocations; active; active = active->next)
+                if (active->identity == a->allocation_identity)
+                    old_identity_is_inactive = 0;
     } else {
         old_identity_is_inactive = 0;
     }
     if (b && b->allocation_identity != 0u) {
-        for (active = semantic.active_allocations; active; active = active->next)
-            if (active->identity == b->allocation_identity)
-                new_identity_is_active = 1;
+        for (path = semantic.allocation_paths; path; path = path->next)
+            for (active = path->allocations; active; active = active->next)
+                if (active->identity == b->allocation_identity)
+                    new_identity_is_active = 1;
     }
     ok = semantic.error_count == 0 && a && b &&
         a->allocation_identity != b->allocation_identity &&
