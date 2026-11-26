@@ -4614,6 +4614,9 @@ static int check_intrinsic_semantics(void) {
     const char* allocation_branch_release_misses_one_path =
         "f:check(cond!bool) { v:a = area(64); "
         "if (cond) { free(a); } els { echo(a); } }";
+    const char* allocation_maybe_released_cannot_be_released_again =
+        "f:check(cond!bool) { v:a = area(64); "
+        "if (cond) { free(a); } els { echo(a); } free(a); }";
     const char* allocation_branch_release_on_all_paths =
         "f:check(cond!bool) { v:a = area(64); "
         "if (cond) { free(a); } els { free(a); } }";
@@ -4726,6 +4729,7 @@ static int check_intrinsic_semantics(void) {
         check_source(allocation_return_path_leaves_allocation_open, 1) &&
         check_source(allocation_release_after_return_is_too_late, -1) &&
         check_source(allocation_branch_release_misses_one_path, 1) &&
+        check_source(allocation_maybe_released_cannot_be_released_again, -1) &&
         check_source(allocation_branch_release_on_all_paths, 0) &&
         check_source(allocation_branch_live_on_all_paths, 0) &&
         check_source(allocation_branch_identity_mismatch, -1) &&
