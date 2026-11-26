@@ -11716,12 +11716,17 @@ static void semantic_check_node(
 
         case AST_BLOCK: {
             ASTBlock* block = (ASTBlock*)node;
-            int followed_by_halt =
-                follow_siblings && node->next &&
-                node->next->type == AST_BLOCK_HALT;
+            ASTNode* last_statement = block->statements;
+            int explicitly_halted = 0;
+            while (last_statement && last_statement->next)
+                last_statement = last_statement->next;
+            /* The parser appends }?; as the final child statement of this
+               AST_BLOCK, not as a sibling of the block node itself. */
+            explicitly_halted = last_statement &&
+                last_statement->type == AST_BLOCK_HALT;
             enter_scope(ctx, node);
             semantic_check(ctx, block->statements);
-            exit_scope_internal(ctx, followed_by_halt);
+            exit_scope_internal(ctx, explicitly_halted);
             break;
         }
 
