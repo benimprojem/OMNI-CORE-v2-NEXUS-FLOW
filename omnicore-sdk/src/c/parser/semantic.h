@@ -30,11 +30,16 @@ typedef struct Slot Slot;
 typedef struct ActiveAllocation {
     uint64_t identity;
     const ASTNode* origin; /* Allocation expression identity; never a numeric address. */
-    uint32_t function_depth; /* Halt only invalidates allocations owned by this execution context. */
-    uint32_t scope_depth; /* Lexical owner depth; shorter-lived bindings cannot retain this allocation. */
-    uint8_t may_be_released; /* Present in at least one path, but not live on every path. */
+    uint32_t function_depth;
+    uint32_t scope_depth;
     struct ActiveAllocation* next;
 } ActiveAllocation;
+
+/* Each node represents one concrete feasible control-flow path. */
+typedef struct AllocationPathState {
+    ActiveAllocation* allocations;
+    struct AllocationPathState* next;
+} AllocationPathState;
 
 typedef struct BorrowOrigin {
     Slot* owner;             /* Non-owning storage-owner reference. */
@@ -181,7 +186,7 @@ typedef struct {
     uint32_t thread_capture_copy_depth;
     uint64_t next_borrow_identity; /* Monotonic SemanticContext-local borrow identity source. */
     uint64_t next_slot_identity; /* Monotonic identity source for live Semantic Slots. */
-    ActiveAllocation* active_allocations; /* Sole source of truth for live allocation identities. */
+    AllocationPathState* allocation_paths; /* Independent feasible allocation states. */
     uint64_t next_allocation_identity; /* Monotonic; overflow must fail closed. */
 
     /* Deterministic allocation-failure injection for semantic tests; zero disables. */
