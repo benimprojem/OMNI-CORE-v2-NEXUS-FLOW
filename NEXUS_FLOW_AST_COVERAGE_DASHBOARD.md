@@ -1549,6 +1549,6 @@ Status: **VERIFIED — Handler relocation slice**. This does not close the remai
 - A maybe-released allocation is not considered definitely live: reads/dereferences and a second release are rejected, while scope exit still diagnoses the path on which ownership remains live.
 - `ret` now checks all allocations owned by the current function before discarding that return path's state. A later statement cannot retroactively close the return edge.
 - Added regressions for release on one versus all branches, release after a path-dependent release, and cleanup after `ret`.
-- Commits: `6537b5c4` (allocation state), `5ef44ddf` (branch merge), `247a88bb` (terminal branch state), `86649154` (return edge), `ac1ab0c1` (reject maybe-live release); tests `158b5402`, `46364374`, `45e8a134`, `678ab7ab`, `0a009f09` (expanded OOM sweep).
+- Commits: `6537b5c4` (allocation state), `5ef44ddf` (branch merge), `247a88bb` (terminal branch state), `86649154` (return edge), `ac1ab0c1` (reject maybe-live release), `e1898237` (break/continue path merge); tests `158b5402`, `46364374`, `45e8a134`, `678ab7ab`, `0a009f09` (expanded OOM sweep), `71b44c9c` (conditional break).
 - Exact-head CI is still unavailable: draft validation PR [#4](https://github.com/benimprojem/OMNI-CORE-v2-NEXUS-FLOW/pull/4) currently reports no workflow run/status for its head.
-- Status: **IN_PROGRESS — NOT VERIFIED**. Loop break/continue ownership paths, global interprocedural effect closure, remaining return/branch joins and exact-head CI remain open. OIR remains gated.
+- Status: **IN_PROGRESS — NOT VERIFIED**. Full loop back-edge/break/continue state validation, global interprocedural effect closure, remaining return/branch joins and exact-head CI remain open. OIR remains gated.
