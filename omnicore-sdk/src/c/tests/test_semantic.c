@@ -4881,7 +4881,7 @@ static int check_intrinsic_semantics(void) {
         check_source(allocation_maybe_released_cannot_be_released_again, -1) &&
         check_source(allocation_branch_release_on_all_paths, 0) &&
         check_source(allocation_branch_release_both_paths_with_distinct_work, 0) &&
-        check_source(allocation_branch_release_one_path_then_read, 1) &&
+        check_source(allocation_branch_release_one_path_then_read, 2) &&
         check_source(allocation_branch_release_one_path_scope_leak, 1) &&
         check_source(allocation_branch_live_on_all_paths, 0) &&
         check_source(allocation_branch_identity_mismatch, -1) &&
