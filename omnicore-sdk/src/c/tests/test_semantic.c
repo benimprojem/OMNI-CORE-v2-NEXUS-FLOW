@@ -4321,7 +4321,7 @@ static int check_allocation_snapshot_oom_failures(void) {
         parser_destroy(parser);
         return 0;
     }
-    for (fail_at = 1u; fail_at <= 48u; ++fail_at) {
+    for (fail_at = 1u; fail_at <= 96u; ++fail_at) {
         SemanticContext semantic;
         uint32_t attempts;
         semantic_init(&semantic, "allocation-snapshot-oom.nxf", NULL);
