@@ -4455,7 +4455,7 @@ static int check_allocation_identity_never_reused(void) {
             if (active->identity == b->allocation_identity)
                 new_identity_is_active = 1;
     }
-    ok = semantic.error_count == 0 && a && b &&
+    ok = semantic.error_count == 1 && a && b &&
         a->allocation_identity != b->allocation_identity &&
         old_identity_is_inactive && new_identity_is_active;
     if (!ok) {
@@ -4581,6 +4581,10 @@ static int check_intrinsic_semantics(void) {
     const char* allocation_pointer_cast_interior_release_rejected =
         "nt:RawI32 = *i32; f:main() { v:a = area(64); "
         "v:p!RawI32 = cast(addr(a) + 4,RawI32); free(p); free(a); }";
+    const char* global_allocation_scope_exit_without_release_rejected =
+        "v:a = area(64);";
+    const char* global_allocation_released_from_main =
+        "v:a = area(64); f:main() { release(addr(a)); }";
     const char* allocation_scope_exit_without_release_rejected =
         "f:main() { v:a = area(64); }";
     const char* allocation_nested_scope_exit_without_release_rejected =
@@ -4700,6 +4704,8 @@ static int check_intrinsic_semantics(void) {
         check_source(allocation_pointer_cast_alias_use_after_free, 1) &&
         check_source(allocation_pointer_cast_base_handle_release, 0) &&
         check_source(allocation_pointer_cast_interior_release_rejected, 1) &&
+        check_source(global_allocation_scope_exit_without_release_rejected, 1) &&
+        check_source(global_allocation_released_from_main, 0) &&
         check_source(allocation_scope_exit_without_release_rejected, 1) &&
         check_source(allocation_nested_scope_exit_without_release_rejected, 1) &&
         check_source(allocation_scope_halt_releases_current_scope, 0) &&
