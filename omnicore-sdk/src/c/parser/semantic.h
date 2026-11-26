@@ -32,6 +32,7 @@ typedef struct ActiveAllocation {
     const ASTNode* origin; /* Allocation expression identity; never a numeric address. */
     uint32_t function_depth; /* Halt only invalidates allocations owned by this execution context. */
     uint32_t scope_depth; /* Lexical owner depth; shorter-lived bindings cannot retain this allocation. */
+    uint8_t may_be_released; /* Present in at least one path, but not live on every path. */
     struct ActiveAllocation* next;
 } ActiveAllocation;
 
