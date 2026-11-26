@@ -4680,6 +4680,16 @@ static int check_intrinsic_semantics(void) {
     const char* function_analysis_does_not_consume_global_allocation =
         "v:global_area = area(64); f:cleanup() { free(global_area); } "
         "f:main() { echo(global_area); free(global_area); }";
+    const char* conditional_function_free_is_not_unconditional =
+        "v:global_area = area(64); "
+        "f:maybe_cleanup(cond!bool) { if (cond) { free(global_area); } } "
+        "f:main() { maybe_cleanup(true); free(global_area); }";
+    const char* function_free_on_every_exit_is_unconditional =
+        "v:global_area = area(64); "
+        "f:always_cleanup(cond!bool) { "
+        "if (cond) { echo(1); free(global_area); } "
+        "els { echo(2); free(global_area); } } "
+        "f:main() { always_cleanup(true); echo(global_area); }";
     const char* function_analysis_does_not_commit_global_relocation =
         "v:global_a = area(64); v:global_b = area(32); free(global_b); "
         "f:move() { v:moved = global_a _> global_b; } "
@@ -4765,6 +4775,8 @@ static int check_intrinsic_semantics(void) {
         check_source(invalid_count, 7) &&
         check_source(halt_does_not_release_global_allocation, 0) &&
         check_source(function_analysis_does_not_consume_global_allocation, 0) &&
+        check_source(conditional_function_free_is_not_unconditional, 1) &&
+        check_source(function_free_on_every_exit_is_unconditional, 1) &&
         check_source(function_analysis_does_not_commit_global_relocation, 0) &&
         check_source(local_allocation_cannot_escape_to_outer_binding, 1) &&
         check_source(function_local_allocation_cannot_escape_to_global, 1) &&
