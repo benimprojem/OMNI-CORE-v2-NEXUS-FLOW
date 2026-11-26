@@ -1910,17 +1910,17 @@ static int check_correlated_function_allocation_alternatives(void) {
         "v:a = area(64); v:b = area(64); "
         "f:maybe_cleanup(cond!bool) { "
         "if (cond) { free(a); free(b); } } "
-        "f:wrapper(cond!bool) { maybe_cleanup(cond); } "
-        "wrapper(true);";
+        "f:wrapper(cond!bool) { maybe_cleanup(cond); }";
     ParserContext* parser = parser_init_source(
         "semantic-correlated-effects.nxf",
         (const uint8_t*)source, strlen(source));
     SemanticContext semantic;
     Slot* a = NULL;
     Slot* b = NULL;
-    AllocationPathState* path;
-    int path_count = 0;
-    int saw_both_live = 0;
+    Slot* wrapper = NULL;
+    SemanticFunctionAllocationAlternative* alternative;
+    int alternative_count = 0;
+    int saw_no_release = 0;
     int saw_both_released = 0;
     int ok = 1;
     if (!parser) return 0;
@@ -1936,34 +1936,44 @@ static int check_correlated_function_allocation_alternatives(void) {
     for (Slot* slot = semantic.head; slot; slot = slot->next) {
         if (slot->name && strcmp(slot->name, "a") == 0) a = slot;
         else if (slot->name && strcmp(slot->name, "b") == 0) b = slot;
+        else if (slot->name && strcmp(slot->name, "wrapper") == 0)
+            wrapper = slot;
     }
-    if (!a || !b || a->allocation_identity == 0u ||
-        b->allocation_identity == 0u) {
+    if (!a || !b || !wrapper || !wrapper->allocation_alternatives ||
+        a->semantic_identity == 0u || b->semantic_identity == 0u) {
         ok = 0;
     } else {
-        for (path = semantic.allocation_paths; path; path = path->next) {
-            ActiveAllocation* allocation;
+        for (alternative = wrapper->allocation_alternatives; alternative;
+             alternative = alternative->next) {
+            SemanticFunctionAllocationEffect* effect;
+            int effect_count = 0;
             int has_a = 0;
             int has_b = 0;
-            ++path_count;
-            for (allocation = path->allocations; allocation;
-                 allocation = allocation->next) {
-                if (allocation->identity == a->allocation_identity) has_a = 1;
-                if (allocation->identity == b->allocation_identity) has_b = 1;
+            ++alternative_count;
+            for (effect = alternative->effects; effect; effect = effect->next) {
+                ++effect_count;
+                if (effect->target_slot_identity == a->semantic_identity)
+                    has_a = 1;
+                if (effect->target_slot_identity == b->semantic_identity)
+                    has_b = 1;
             }
-            /* Both frees occur on the same source branch. A summary must not
-               invent mixed states where only one of the two was released. */
-            if (has_a != has_b) ok = 0;
-            if (has_a && has_b) saw_both_live = 1;
-            if (!has_a && !has_b) saw_both_released = 1;
+            if (effect_count == 0) {
+                saw_no_release = 1;
+            } else if (effect_count == 2 && has_a && has_b) {
+                saw_both_released = 1;
+            } else {
+                /* Independent per-allocation splitting would invent this. */
+                ok = 0;
+            }
         }
     }
-    if (path_count != 2 || !saw_both_live || !saw_both_released) ok = 0;
+    if (alternative_count != 2 || !saw_no_release ||
+        !saw_both_released) ok = 0;
     if (!ok) {
         fprintf(stderr,
             "Correlated function allocation alternatives failed "
-            "(errors=%d, paths=%d, both_live=%d, both_released=%d).\\n",
-            semantic.error_count, path_count, saw_both_live,
+            "(errors=%d, alternatives=%d, no_release=%d, both_released=%d).\\n",
+            semantic.error_count, alternative_count, saw_no_release,
             saw_both_released);
     }
     semantic_destroy(&semantic);
