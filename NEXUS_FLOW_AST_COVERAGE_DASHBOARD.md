@@ -1542,3 +1542,13 @@ Status: **VERIFIED — Handler relocation slice**. This does not close the remai
 - Draft CI validation PR: [#4](https://github.com/benimprojem/OMNI-CORE-v2-NEXUS-FLOW/pull/4). No workflow run/status has been reported for the current head yet.
 - Global allocations are not yet diagnosed at program end: the function body is analyzed as a declaration, so applying its effects requires the existing interprocedural summary/call-flow model rather than assuming that `main` executes. This remains open.
 - Status: **IN_PROGRESS — NOT VERIFIED**. Do not mark SEM-005 complete; return-path and control-flow join audits, interprocedural effects and exact-head CI remain open. OIR remains gated.
+
+### SEM-005 — Path-sensitive allocation liveness and return edges (2026-11-26)
+
+- Extended allocation snapshots with a maybe-released state. Branch joins now retain the union of allocation identities instead of dropping an identity released on only one path.
+- A maybe-released allocation is not considered definitely live: reads/dereferences and a second release are rejected, while scope exit still diagnoses the path on which ownership remains live.
+- `ret` now checks all allocations owned by the current function before discarding that return path's state. A later statement cannot retroactively close the return edge.
+- Added regressions for release on one versus all branches, release after a path-dependent release, and cleanup after `ret`.
+- Commits: `6537b5c4` (allocation state), `5ef44ddf` (branch merge), `86649154` (return edge), `ac1ab0c1` (reject maybe-live release), tests `158b5402`, `46364374`, `45e8a134`, `678ab7ab`.
+- Exact-head CI is still unavailable: draft validation PR [#4](https://github.com/benimprojem/OMNI-CORE-v2-NEXUS-FLOW/pull/4) currently reports no workflow run/status for its head.
+- Status: **IN_PROGRESS — NOT VERIFIED**. Loop break/continue ownership paths, global interprocedural effect closure, remaining return/branch joins and exact-head CI remain open. OIR remains gated.
