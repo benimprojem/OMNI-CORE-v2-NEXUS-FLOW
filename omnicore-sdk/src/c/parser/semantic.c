@@ -11731,8 +11731,8 @@ static void semantic_check_node(
         }
 
         case AST_BLOCK_HALT:
-            /* The immediately preceding AST_BLOCK already closed its scope
-               through the explicit-halt path. Do not release outer owners. */
+            /* The owning AST_BLOCK closes this scope through its explicit-halt
+               path after statement traversal stops at this marker. */
             semantic_record_annotation(
                 ctx, node, NULL, "void", SEMANTIC_RESULT_VALUE_RVALUE);
             ctx->halted_function_depth = (uint32_t)ctx->function_depth;
