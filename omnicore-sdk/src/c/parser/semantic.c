@@ -6864,7 +6864,22 @@ static int semantic_capture_function_allocation_alternatives(
     const AllocationPathState* exit_path;
     SemanticFunctionAllocationAlternative* head = NULL;
     SemanticFunctionAllocationAlternative* tail = NULL;
-    if (!ctx || !function_slot || !entry_paths) return 0;
+    if (!ctx || !function_slot) return 0;
+
+    /* Allocation tracking is lazy. A function analyzed before any allocation
+       still has one feasible, effect-free return alternative. */
+    if (!ctx->allocation_paths) {
+        head = (SemanticFunctionAllocationAlternative*)semantic_callocate(
+            ctx, 1u, sizeof(*head));
+        if (!head) {
+            semantic_set_result_error(ctx, SEMANTIC_RESULT_OUT_OF_MEMORY);
+            return 0;
+        }
+        semantic_function_allocation_alternatives_destroy(
+            function_slot->allocation_alternatives);
+        function_slot->allocation_alternatives = head;
+        return 1;
+    }
 
     for (exit_path = ctx->allocation_paths; exit_path;
          exit_path = exit_path->next) {
