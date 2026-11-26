@@ -2950,6 +2950,7 @@ defer {
 - `?;` mevcut tablonun allocation'larını, `}?;` ise hemen önce kapanan bloğun allocation'larını sonlandırır; bu işlemler dış kapsamın sahip olduğu allocation'ları kapatmaz.
 - Koşullu dallar birleşirken bir allocation herhangi bir devam yolunda hâlâ canlıysa kayıt korunur; o kimlik tüm yollarda kesin canlı değilse kullanımı ve yeniden serbest bırakılması reddedilir.
 - `ret` bir çıkış kenarıdır. Daha sonraki satırlardaki cleanup, dönüş yolundaki açık allocation'ı kapatmış sayılmaz.
+- `break` ve `continue` yalnızca geçerli loop yolunu/iterasyonunu sonlandırır; allocation durumu loop'un sıfır veya daha çok kez çalışabilen devam yollarıyla birlikte değerlendirilir.
 - defer { ... } kapsamdan çıkışta çalıştırılacak cleanup gövdesini tanımlar.
 - Birden fazla defer'in LIFO/FIFO davranışı ve panic/jump/ret durumlarındaki ayrıntılar kısmen tanımlıdır. Cleanup ile ownership kuralları çelişmemelidir.
 
