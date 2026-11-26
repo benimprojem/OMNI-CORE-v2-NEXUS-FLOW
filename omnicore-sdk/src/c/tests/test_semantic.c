@@ -4353,6 +4353,8 @@ static int check_function_allocation_cleanup(void) {
     ParserContext* parser = parser_init_source(
         "allocation-frame.nxf", (const uint8_t*)source, strlen(source));
     SemanticContext semantic;
+    AllocationPathState* path;
+    int allocations_clean = 1;
     int ok;
     if (!parser) return 0;
     if (parser_run(parser) != 0 || !parser->ast_root) {
@@ -4361,11 +4363,18 @@ static int check_function_allocation_cleanup(void) {
     }
     semantic_init(&semantic, "allocation-frame.nxf", NULL);
     semantic_check(&semantic, (ASTNode*)parser->ast_root);
-    ok = semantic.error_count == 1 && semantic.active_allocations == NULL;
+    for (path = semantic.allocation_paths; path; path = path->next) {
+        if (path->allocations) {
+            allocations_clean = 0;
+            break;
+        }
+    }
+    ok = semantic.error_count == 1 && semantic.allocation_paths != NULL &&
+        allocations_clean;
     if (!ok) {
         fprintf(stderr,
-            "Unreleased function allocation was not diagnosed and cleaned at function exit. errors=%d active=%p\\n",
-            semantic.error_count, (void*)semantic.active_allocations);
+            "Unreleased function allocation was not diagnosed and cleaned at function exit. errors=%d paths=%p\\n",
+            semantic.error_count, (void*)semantic.allocation_paths);
     }
     semantic_destroy(&semantic);
     parser_destroy(parser);
