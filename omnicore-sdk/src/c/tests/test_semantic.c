@@ -4632,6 +4632,10 @@ static int check_intrinsic_semantics(void) {
     const char* allocation_loop_may_release_alias =
         "f:main(cond!bool) { v:a = area(64); v:alias = a; "
         "loop (cond) { free(a); break; } echo(alias); }";
+    const char* allocation_conditional_break_may_release_alias =
+        "f:main(loop_cond!bool, release_cond!bool) { v:a = area(64); "
+        "loop (loop_cond) { if (release_cond) { free(a); break; } "
+        "els { echo(a); } } echo(a); }";
     const char* allocation_nested_loop_may_release_alias =
         "f:main(cond!bool) { v:a = area(64); v:alias = a; "
         "loop (cond) { loop (true) { free(a); break; } break; } "
@@ -4735,6 +4739,7 @@ static int check_intrinsic_semantics(void) {
         check_source(allocation_branch_identity_mismatch, -1) &&
         check_source(allocation_loop_backedge_identity_mismatch, -1) &&
         check_source(allocation_loop_may_release_alias, -1) &&
+        check_source(allocation_conditional_break_may_release_alias, -1) &&
         check_source(allocation_nested_loop_may_release_alias, -1) &&
         check_source(allocation_relocate_to_outer_scope, 0) &&
         check_source(allocation_relocate_into_owned_destination_rejected, 1) &&
