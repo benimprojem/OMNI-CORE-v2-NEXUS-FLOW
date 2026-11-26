@@ -4812,7 +4812,7 @@ static int check_intrinsic_semantics(void) {
         check_source(allocation_free_untracked_address_rejected, 1) &&
         check_source(allocation_address_alias_use_after_free, 1) &&
         check_source(allocation_pointer_copy_use_after_free, 1) &&
-        check_source(allocation_handle_reference_dereference_use_after_free, 1) &&
+        check_source(allocation_handle_reference_dereference_use_after_free, 2) &&
         check_source(allocation_handle_reference_direct_dereference_after_free, 1) &&
         check_source(allocation_reborrow_deref_alias_after_free, 1) &&
         check_source(allocation_offset_alias_use_after_free, 1) &&
