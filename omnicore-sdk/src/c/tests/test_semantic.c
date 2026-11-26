@@ -1915,7 +1915,7 @@ static int check_allocation_handle_call_escape_rejection_semantics(void) {
         "f:main() { v:handle = area(16); store(handle); free(handle); }";
     const char* extern_any_parameter =
         "exf:store(value!any); "
-        "f:main() { v:handle = area(16); store(handle); }";
+        "f:main() { v:handle = area(16); store(handle); free(handle); }";
     return check_source(any_parameter_call, 1) &&
         check_source(any_parameter_escape, 1) &&
         check_source(extern_any_parameter, 1);
@@ -4629,7 +4629,7 @@ static int check_intrinsic_semantics(void) {
         "f:main() { v:a = area(64); v:b = area(32); v:moved = a _> b; free(a); free(b); }";
     const char* allocation_relocate_across_function_frame_rejected =
         "v:global_area = area(64); "
-        "f:move() { v:local = area(32); v:moved = local _> global_area; }";
+        "f:move() { v:local = area(32); v:moved = local _> global_area; free(local); }";
     const char* allocation_relocate_interior_pointer_rejected =
         "f:main() { v:a = area(64); v:base = addr(a); "
         "v:interior = base + 4; v:moved = interior _> base; free(a); }";
