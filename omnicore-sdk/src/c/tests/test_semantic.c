@@ -1905,6 +1905,72 @@ static int check_interprocedural_allocation_free_effects(void) {
         check_source(repeated_free_effect_is_rejected, 1);
 }
 
+static int check_correlated_function_allocation_alternatives(void) {
+    const char* source =
+        "v:a = area(64); v:b = area(64); "
+        "f:maybe_cleanup(cond!bool) { "
+        "if (cond) { free(a); free(b); } } "
+        "f:wrapper(cond!bool) { maybe_cleanup(cond); } "
+        "wrapper(true);";
+    ParserContext* parser = parser_init_source(
+        "semantic-correlated-effects.nxf",
+        (const uint8_t*)source, strlen(source));
+    SemanticContext semantic;
+    Slot* a = NULL;
+    Slot* b = NULL;
+    AllocationPathState* path;
+    int path_count = 0;
+    int saw_both_live = 0;
+    int saw_both_released = 0;
+    int ok = 1;
+    if (!parser) return 0;
+    if (parser_run(parser) != 0 || !parser->ast_root) {
+        parser_destroy(parser);
+        return 0;
+    }
+
+    semantic_init(&semantic, "semantic-correlated-effects.nxf", NULL);
+    semantic_check(&semantic, (ASTNode*)parser->ast_root);
+    if (semantic.error_count != 0) ok = 0;
+
+    for (Slot* slot = semantic.head; slot; slot = slot->next) {
+        if (slot->name && strcmp(slot->name, "a") == 0) a = slot;
+        else if (slot->name && strcmp(slot->name, "b") == 0) b = slot;
+    }
+    if (!a || !b || a->allocation_identity == 0u ||
+        b->allocation_identity == 0u) {
+        ok = 0;
+    } else {
+        for (path = semantic.allocation_paths; path; path = path->next) {
+            ActiveAllocation* allocation;
+            int has_a = 0;
+            int has_b = 0;
+            ++path_count;
+            for (allocation = path->allocations; allocation;
+                 allocation = allocation->next) {
+                if (allocation->identity == a->allocation_identity) has_a = 1;
+                if (allocation->identity == b->allocation_identity) has_b = 1;
+            }
+            /* Both frees occur on the same source branch. A summary must not
+               invent mixed states where only one of the two was released. */
+            if (has_a != has_b) ok = 0;
+            if (has_a && has_b) saw_both_live = 1;
+            if (!has_a && !has_b) saw_both_released = 1;
+        }
+    }
+    if (path_count != 2 || !saw_both_live || !saw_both_released) ok = 0;
+    if (!ok) {
+        fprintf(stderr,
+            "Correlated function allocation alternatives failed "
+            "(errors=%d, paths=%d, both_live=%d, both_released=%d).\\n",
+            semantic.error_count, path_count, saw_both_live,
+            saw_both_released);
+    }
+    semantic_destroy(&semantic);
+    parser_destroy(parser);
+    return ok;
+}
+
 static int check_allocation_handle_call_escape_rejection_semantics(void) {
     const char* any_parameter_call =
         "f:consume(value!any) {} "
@@ -5109,6 +5175,10 @@ int main(int argc, char** argv) {
     }
     if (!check_interprocedural_allocation_free_effects()) {
         fprintf(stderr, "Interprocedural allocation free-effect checks failed.\\n");
+        return 1;
+    }
+    if (!check_correlated_function_allocation_alternatives()) {
+        fprintf(stderr, "Correlated function allocation alternative checks failed.\\n");
         return 1;
     }
     if (!check_allocation_handle_call_escape_rejection_semantics()) {
