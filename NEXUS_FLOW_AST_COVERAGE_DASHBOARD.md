@@ -1529,3 +1529,15 @@ Status: **VERIFIED — Handler relocation slice**. This does not close the remai
 - Earlier CI failure: run [45560964429](https://github.com/benimprojem/OMNI-CORE-v2-NEXUS-FLOW/actions/runs/45560964429), test `semantic_checks_valid_and_undefined_symbols`, showed the valid `free(*p)` case was rejected because the handle-variable borrow was counted as a borrow of the allocated region. Fixed without weakening the general active-borrow gate.
 - Exact-head commit `2abeaedd551d33ed82c9b4ac218cf8bd8e2e4a6b`, run [45574152654](https://github.com/benimprojem/OMNI-CORE-v2-NEXUS-FLOW/actions/runs/45574152654): all five jobs passed — Ubuntu, Windows, macOS, ASan/UBSan and Valgrind.
 - Status: this pointer/handle storage and thread-capture slice is VERIFIED. SEM-005 remains IN_PROGRESS pending the remaining pointer expression/projection audit, interprocedural handle escape/effect contracts, control-flow lifetime joins and diagnostic coverage. OIR remains gated.
+
+### SEM-005 — Explicit allocation release and scope-exit leak diagnostics (2026-11-26)
+
+- Added the ownership-oriented intrinsic spelling `release(addr(value))`; it shares the existing `AST_FREE` semantic path. Legacy `free(value)` remains supported.
+- Release requires a tracked allocation base address. Interior/offset and untracked addresses are rejected; releasing an allocation invalidates all aliases carrying its identity.
+- A normal lexical scope close now diagnoses active allocations owned by that scope instead of silently treating scope exit as an implicit release.
+- `?;` releases allocations owned by the current scope. The block-closing `}?;` form explicitly closes the immediately preceding block's allocations without releasing outer-scope owners.
+- Added program-end diagnostics for unreleased global allocations. Added regressions for normal/nested scope leaks, both halt forms, global release, pointer-cast release, interior/untracked addresses and alias invalidation.
+- Existing fixtures were adjusted to explicitly close allocations where the test was not intended to exercise a leak.
+- Implementation commits: `8ad9d720` (release token), `8eafc62b` (scope lifetime diagnostics), `d98cfdd5` (global lifetime diagnostics). Regression/documentation commits include `96bbb01f`, `9558ab63`, `8777fcb3`, `8930bd8f`, `79e966d0`.
+- Draft CI validation PR: [#4](https://github.com/benimprojem/OMNI-CORE-v2-NEXUS-FLOW/pull/4). No workflow run/status has been reported for the current head yet.
+- Status: **IN_PROGRESS — NOT VERIFIED**. Do not mark SEM-005 complete; return-path and control-flow join audits, interprocedural effects and exact-head CI remain open. OIR remains gated.
