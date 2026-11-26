@@ -4811,19 +4811,6 @@ static void semantic_validate_reg_intrinsic(
     }
 }
 
-static ActiveAllocation* semantic_find_allocation_record(
-    const SemanticContext* ctx, uint64_t identity
-) {
-    const AllocationPathState* path;
-    if (!ctx || identity == 0u) return NULL;
-    for (path = ctx->allocation_paths; path; path = path->next) {
-        ActiveAllocation* current;
-        for (current = path->allocations; current; current = current->next)
-            if (current->identity == identity) return current;
-    }
-    return NULL;
-}
-
 /* A handle is definitely live only when it exists in every feasible state. */
 static ActiveAllocation* semantic_find_active_allocation(
     const SemanticContext* ctx, uint64_t identity
