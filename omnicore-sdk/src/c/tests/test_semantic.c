@@ -1908,11 +1908,11 @@ static int check_interprocedural_allocation_free_effects(void) {
 static int check_allocation_handle_call_escape_rejection_semantics(void) {
     const char* any_parameter_call =
         "f:consume(value!any) {} "
-        "f:main() { v:handle = area(16); consume(handle); }";
+        "f:main() { v:handle = area(16); consume(handle); free(handle); }";
     const char* any_parameter_escape =
         "v:global!any; "
         "f:store(value!any) { global = value; } "
-        "f:main() { v:handle = area(16); store(handle); }";
+        "f:main() { v:handle = area(16); store(handle); free(handle); }";
     const char* extern_any_parameter =
         "exf:store(value!any); "
         "f:main() { v:handle = area(16); store(handle); }";
@@ -1938,13 +1938,13 @@ static int check_allocation_handle_container_storage_rejection_semantics(void) {
         "f:main() { v:value!any = area(16); }";
     const char* any_variable_area_handle_assignment =
         "f:main() { v:value!any; value = area(16); }";
-    return check_source(fixed_array_any_handle_assignment, 1) &&
-        check_source(map_area_handle_assignment, 1) &&
-        check_source(any_field_area_handle_assignment, 1) &&
-        check_source(nested_any_field_area_handle_assignment, 1) &&
-        check_source(inferred_array_area_handles, 1) &&
-        check_source(any_variable_area_handle, 1) &&
-        check_source(any_variable_area_handle_assignment, 1);
+    return check_source(fixed_array_any_handle_assignment, -1) &&
+        check_source(map_area_handle_assignment, -1) &&
+        check_source(any_field_area_handle_assignment, -1) &&
+        check_source(nested_any_field_area_handle_assignment, -1) &&
+        check_source(inferred_array_area_handles, -1) &&
+        check_source(any_variable_area_handle, -1) &&
+        check_source(any_variable_area_handle_assignment, -1);
 }
 
 
