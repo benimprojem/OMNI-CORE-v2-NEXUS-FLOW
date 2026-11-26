@@ -1893,8 +1893,8 @@ static int check_interprocedural_allocation_free_effects(void) {
         "f:main() { wrapper(); echo(handle); }";
     const char* local_alias_free_is_rejected =
         "v:handle = area(16); "
-        "f:release() { v:alias = handle; free(alias); } "
-        "f:main() { release(); }";
+        "f:cleanup() { v:alias = handle; free(alias); } "
+        "f:main() { cleanup(); free(handle); }";
     const char* repeated_free_effect_is_rejected =
         "v:handle = area(16); "
         "f:cleanup() { free(handle); } "
