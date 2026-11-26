@@ -23,7 +23,7 @@ static int semantic_snapshot_allocations_clone(
     SemanticContext* ctx, const ActiveAllocation* source,
     ActiveAllocation** output
 );
-static int semantic_snapshot_allocations_intersection(
+static int semantic_snapshot_allocations_merge(
     SemanticContext* ctx, const ActiveAllocation* left,
     const ActiveAllocation* right, ActiveAllocation** output
 );
@@ -2471,7 +2471,7 @@ static int semantic_reference_init_snapshot_merge(
         return 0;
 
     merged.count = left->count;
-    if (!semantic_snapshot_allocations_intersection(
+    if (!semantic_snapshot_allocations_merge(
             ctx, left->allocations, right->allocations,
             &merged.allocations))
         goto merge_failure;
@@ -2739,6 +2739,7 @@ static int semantic_snapshot_allocations_clone(
         copy->origin = source->origin;
         copy->function_depth = source->function_depth;
         copy->scope_depth = source->scope_depth;
+        copy->may_be_released = source->may_be_released;
         if (tail) tail->next = copy;
         else head = copy;
         tail = copy;
@@ -2753,7 +2754,7 @@ allocation_failure:
     return 0;
 }
 
-static int semantic_snapshot_allocations_intersection(
+static int semantic_snapshot_allocations_merge(
     SemanticContext* ctx, const ActiveAllocation* left,
     const ActiveAllocation* right, ActiveAllocation** output
 ) {
@@ -2762,23 +2763,52 @@ static int semantic_snapshot_allocations_intersection(
     const ActiveAllocation* current;
     if (!output) return 0;
     *output = NULL;
+    /* Keep the union of allocation identities. An identity absent from
+       either branch is maybe released, not definitely dead: the other path
+       may still own it and must be diagnosed at its lifetime boundary. */
     for (current = left; current; current = current->next) {
         const ActiveAllocation* candidate;
+        ActiveAllocation* copy;
         for (candidate = right; candidate; candidate = candidate->next)
             if (candidate->identity == current->identity) break;
-        if (!candidate) continue;
-        {
-            ActiveAllocation* copy = (ActiveAllocation*)semantic_callocate(
-                ctx, 1u, sizeof(*copy));
-            if (!copy) goto allocation_failure;
-            copy->identity = current->identity;
-            copy->origin = current->origin;
-            copy->function_depth = current->function_depth;
-            copy->scope_depth = current->scope_depth;
-            if (tail) tail->next = copy;
-            else head = copy;
-            tail = copy;
+        copy = (ActiveAllocation*)semantic_callocate(ctx, 1u, sizeof(*copy));
+        if (!copy) goto allocation_failure;
+        copy->identity = current->identity;
+        copy->origin = current->origin;
+        copy->function_depth = current->function_depth;
+        copy->scope_depth = current->scope_depth;
+        copy->may_be_released = (uint8_t)(
+            current->may_be_released || !candidate ||
+            (candidate && candidate->may_be_released));
+        if (candidate) {
+            if (candidate->function_depth > copy->function_depth)
+                copy->function_depth = candidate->function_depth;
+            if (candidate->scope_depth > copy->scope_depth)
+                copy->scope_depth = candidate->scope_depth;
+            if (candidate->function_depth != current->function_depth ||
+                candidate->scope_depth != current->scope_depth)
+                copy->may_be_released = 1u;
         }
+        if (tail) tail->next = copy;
+        else head = copy;
+        tail = copy;
+    }
+    for (current = right; current; current = current->next) {
+        const ActiveAllocation* candidate;
+        ActiveAllocation* copy;
+        for (candidate = left; candidate; candidate = candidate->next)
+            if (candidate->identity == current->identity) break;
+        if (candidate) continue;
+        copy = (ActiveAllocation*)semantic_callocate(ctx, 1u, sizeof(*copy));
+        if (!copy) goto allocation_failure;
+        copy->identity = current->identity;
+        copy->origin = current->origin;
+        copy->function_depth = current->function_depth;
+        copy->scope_depth = current->scope_depth;
+        copy->may_be_released = 1u;
+        if (tail) tail->next = copy;
+        else head = copy;
+        tail = copy;
     }
     *output = head;
     return 1;
@@ -4741,7 +4771,8 @@ static ActiveAllocation* semantic_find_active_allocation(
     ActiveAllocation* current;
     if (!ctx || identity == 0u) return NULL;
     for (current = ctx->active_allocations; current; current = current->next)
-        if (current->identity == identity) return current;
+        if (current->identity == identity && !current->may_be_released)
+            return current;
     return NULL;
 }
 
@@ -4831,9 +4862,11 @@ static void semantic_check_scope_allocations_closed(
             current->function_depth == ctx->function_depth) {
             report_issue(ctx, (ASTNode*)current->origin,
                 ERR_SEMANTIC_TYPE_MISMATCH,
-                "Allocation leaves its owning scope without an explicit release.",
-                "Use release(addr(value)) / free(value), or terminate the owning table with ?; or }?; before leaving the scope.",
-                "The allocation is still active at the closing scope boundary. Every control-flow path must explicitly end its lifetime.",
+                current->may_be_released
+                    ? "Allocation is not released on every control-flow path."
+                    : "Allocation leaves its owning scope without an explicit release.",
+                "Use release(addr(value)) / free(value), or terminate the owning table with ?; or }?; on every path.",
+                "The allocation remains live on at least one path at the closing scope boundary.",
                 0, 0);
         }
     }
@@ -4852,6 +4885,25 @@ static void semantic_release_scope_allocations(
             free(current);
         } else {
             link = &current->next;
+        }
+    }
+}
+
+static void semantic_check_function_allocations_closed(
+    SemanticContext* ctx, uint32_t function_depth
+) {
+    ActiveAllocation* current;
+    if (!ctx) return;
+    for (current = ctx->active_allocations; current; current = current->next) {
+        if (current->function_depth == function_depth) {
+            report_issue(ctx, (ASTNode*)current->origin,
+                ERR_SEMANTIC_TYPE_MISMATCH,
+                current->may_be_released
+                    ? "Function exits while an allocation remains live on at least one control-flow path."
+                    : "Function exits while owning an unreleased allocation.",
+                "Release the allocation before every ret path, or transfer it through an explicitly supported ownership contract.",
+                "A return path cannot rely on a later statement to close this allocation.",
+                0, 0);
         }
     }
 }
@@ -11385,6 +11437,13 @@ static void semantic_check_node(
                 break;
             }
             if (ret->operand) semantic_check(ctx, ret->operand);
+
+            /* ret is an exit edge: later statements cannot close allocations
+               that are still owned by this function on this path. */
+            semantic_check_function_allocations_closed(
+                ctx, (uint32_t)ctx->function_depth);
+            semantic_release_function_allocations(
+                ctx, (uint32_t)ctx->function_depth);
 
             if (ret->operand) {
                 uint64_t returned_allocation_identity =
