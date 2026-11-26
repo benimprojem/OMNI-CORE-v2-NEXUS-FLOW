@@ -4522,7 +4522,7 @@ static int check_intrinsic_semantics(void) {
     const char* invalid_outb =
         "f:main() { outb(1, \"value\"); }";
     const char* valid_alloc =
-        "f:main() { v:a = area(64); v:z = zone(128); free(a); free(z); }";
+        "f:main() { v:a = area(64); v:z = zone(128); release(addr(a)); free(z); }";
     const char* allocation_alias_use_after_free =
         "f:main() { v:a = area(64); v:b = a; free(a); echo(b); }";
     const char* allocation_new_identity_after_reuse =
@@ -4581,6 +4581,14 @@ static int check_intrinsic_semantics(void) {
     const char* allocation_pointer_cast_interior_release_rejected =
         "nt:RawI32 = *i32; f:main() { v:a = area(64); "
         "v:p!RawI32 = cast(addr(a) + 4,RawI32); free(p); }";
+    const char* allocation_scope_exit_without_release_rejected =
+        "f:main() { v:a = area(64); }";
+    const char* allocation_nested_scope_exit_without_release_rejected =
+        "f:main() { { v:a = area(64); } }";
+    const char* allocation_scope_halt_releases_current_scope =
+        "f:main() { { v:a = area(64); ?; } }";
+    const char* allocation_block_halt_releases_closed_scope =
+        "f:main() { { v:a = area(64); }?; }";
     const char* allocation_release_base_address =
         "f:main() { v:a = area(64); release(addr(a)); }";
     const char* allocation_release_invalid_interior_address =
@@ -4690,6 +4698,10 @@ static int check_intrinsic_semantics(void) {
         check_source(allocation_pointer_cast_alias_use_after_free, 1) &&
         check_source(allocation_pointer_cast_base_handle_release, 0) &&
         check_source(allocation_pointer_cast_interior_release_rejected, 1) &&
+        check_source(allocation_scope_exit_without_release_rejected, 1) &&
+        check_source(allocation_nested_scope_exit_without_release_rejected, 1) &&
+        check_source(allocation_scope_halt_releases_current_scope, 0) &&
+        check_source(allocation_block_halt_releases_closed_scope, 0) &&
         check_source(allocation_release_base_address, 0) &&
         check_source(allocation_release_invalid_interior_address, 1) &&
         check_source(allocation_release_invalid_untracked_address, 1) &&
