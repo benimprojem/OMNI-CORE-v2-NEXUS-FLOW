@@ -6847,6 +6847,83 @@ static int semantic_free_uses_sole_handle_reference_borrow(
     return 1;
 }
 
+/* A conditional callee release creates two feasible caller states:
+   one in which the allocation remains live and one in which it is released. */
+static int semantic_split_allocation_paths_on_release(
+    SemanticContext* ctx, uint64_t identity
+) {
+    const AllocationPathState* source;
+    AllocationPathState* head = NULL;
+    AllocationPathState* tail = NULL;
+    if (!ctx || identity == 0u || !ctx->allocation_paths) return 0;
+    for (source = ctx->allocation_paths; source; source = source->next) {
+        const ActiveAllocation* active;
+        AllocationPathState* live_copy;
+        AllocationPathState* released_copy;
+        ActiveAllocation** link;
+        for (active = source->allocations; active; active = active->next)
+            if (active->identity == identity) break;
+        if (!active) return 0;
+    }
+    for (source = ctx->allocation_paths; source; source = source->next) {
+        live_copy = (AllocationPathState*)semantic_callocate(
+            ctx, 1u, sizeof(*live_copy));
+        released_copy = (AllocationPathState*)semantic_callocate(
+            ctx, 1u, sizeof(*released_copy));
+        if (!live_copy || !released_copy) {
+            free(live_copy);
+            free(released_copy);
+            goto allocation_failure;
+        }
+        if (!semantic_snapshot_allocations_clone(
+                ctx, source->allocations, &live_copy->allocations) ||
+            !semantic_snapshot_allocations_clone(
+                ctx, source->allocations, &released_copy->allocations)) {
+            semantic_snapshot_allocations_destroy(live_copy->allocations);
+            semantic_snapshot_allocations_destroy(released_copy->allocations);
+            free(live_copy);
+            free(released_copy);
+            goto allocation_failure;
+        }
+        link = &released_copy->allocations;
+        while (*link) {
+            ActiveAllocation* current = *link;
+            if (current->identity == identity) {
+                *link = current->next;
+                free(current);
+                break;
+            }
+            link = &current->next;
+        }
+        if (tail) tail->next = live_copy;
+        else head = live_copy;
+        tail = live_copy;
+        tail->next = released_copy;
+        tail = released_copy;
+    }
+    semantic_allocation_paths_destroy(ctx->allocation_paths);
+    ctx->allocation_paths = head;
+    return 1;
+
+allocation_failure:
+    semantic_allocation_paths_destroy(head);
+    semantic_set_result_error(ctx, SEMANTIC_RESULT_OUT_OF_MEMORY);
+    return 0;
+}
+
+static int semantic_allocation_is_live_on_any_path(
+    const SemanticContext* ctx, uint64_t identity
+) {
+    const AllocationPathState* path;
+    if (!ctx || identity == 0u) return 0;
+    for (path = ctx->allocation_paths; path; path = path->next) {
+        const ActiveAllocation* active;
+        for (active = path->allocations; active; active = active->next)
+            if (active->identity == identity) return 1;
+    }
+    return 0;
+}
+
 static void semantic_apply_function_allocation_effects(
     SemanticContext* ctx, ASTNode* call_node, Slot* function_slot
 ) {
@@ -6882,7 +6959,15 @@ static void semantic_apply_function_allocation_effects(
             (void)semantic_record_function_allocation_effect(
                 ctx, ctx->current_function_slot, target, call_node);
         }
-        (void)semantic_release_allocation(ctx, identity);
+        if (effect->is_conditional) {
+            if (!semantic_split_allocation_paths_on_release(
+                    ctx, identity)) {
+                report_error(ctx, call_node, ERR_SEMANTIC_TYPE_MISMATCH,
+                    "A conditional free effect could not be represented across all caller allocation paths.");
+            }
+        } else {
+            (void)semantic_release_allocation(ctx, identity);
+        }
     }
 }
 
@@ -11367,6 +11452,20 @@ static void semantic_check_node(
                     ctx->current_function_slot = function_slot;
                     ++ctx->function_depth;
                     semantic_check(ctx, func->body);
+                    /* Classify each collected free effect against every feasible
+                       function exit. If any exit still owns the allocation, the
+                       effect is conditional; otherwise it is guaranteed. */
+                    {
+                        SemanticFunctionAllocationEffect* effect;
+                        for (effect = function_slot->allocation_effects;
+                             effect; effect = effect->next) {
+                            Slot* target = semantic_find_slot_by_identity(
+                                ctx, effect->target_slot_identity);
+                            effect->is_conditional = (uint8_t)(
+                                target && semantic_allocation_is_live_on_any_path(
+                                    ctx, target->allocation_identity));
+                        }
+                    }
                     /* Function-local allocations cannot outlive the call frame,
                        even when the body reaches its closing brace normally. */
                     semantic_release_function_allocations(
