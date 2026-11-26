@@ -4581,6 +4581,15 @@ static int check_intrinsic_semantics(void) {
     const char* allocation_pointer_cast_interior_release_rejected =
         "nt:RawI32 = *i32; f:main() { v:a = area(64); "
         "v:p!RawI32 = cast(addr(a) + 4,RawI32); free(p); }";
+    const char* allocation_release_base_address =
+        "f:main() { v:a = area(64); release(addr(a)); }";
+    const char* allocation_release_invalid_interior_address =
+        "f:main() { v:a = area(64); release(addr(a) + 4); }";
+    const char* allocation_release_invalid_untracked_address =
+        "f:main() { release(4096); }";
+    const char* allocation_release_invalidates_all_aliases =
+        "f:main() { v:a = area(64); v:p = addr(a); "
+        "release(addr(a)); echo(p); }";
     const char* allocation_return_escape_rejected =
         "f:make() { v:a = area(64); ret addr(a); }";
     const char* allocation_double_free =
@@ -4681,6 +4690,10 @@ static int check_intrinsic_semantics(void) {
         check_source(allocation_pointer_cast_alias_use_after_free, 1) &&
         check_source(allocation_pointer_cast_base_handle_release, 0) &&
         check_source(allocation_pointer_cast_interior_release_rejected, 1) &&
+        check_source(allocation_release_base_address, 0) &&
+        check_source(allocation_release_invalid_interior_address, 1) &&
+        check_source(allocation_release_invalid_untracked_address, 1) &&
+        check_source(allocation_release_invalidates_all_aliases, 1) &&
         check_source(allocation_return_escape_rejected, 1) &&
         check_source(allocation_double_free, 1) &&
         check_source(allocation_branch_release_is_not_live_after_join, 1) &&
