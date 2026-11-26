@@ -6858,14 +6858,14 @@ static int semantic_split_allocation_paths_on_release(
     if (!ctx || identity == 0u || !ctx->allocation_paths) return 0;
     for (source = ctx->allocation_paths; source; source = source->next) {
         const ActiveAllocation* active;
-        AllocationPathState* live_copy;
-        AllocationPathState* released_copy;
-        ActiveAllocation** link;
         for (active = source->allocations; active; active = active->next)
             if (active->identity == identity) break;
         if (!active) return 0;
     }
     for (source = ctx->allocation_paths; source; source = source->next) {
+        AllocationPathState* live_copy;
+        AllocationPathState* released_copy;
+        ActiveAllocation** link;
         live_copy = (AllocationPathState*)semantic_callocate(
             ctx, 1u, sizeof(*live_copy));
         released_copy = (AllocationPathState*)semantic_callocate(
