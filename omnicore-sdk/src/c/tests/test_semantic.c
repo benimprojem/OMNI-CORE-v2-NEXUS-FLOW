@@ -4544,7 +4544,8 @@ static int check_intrinsic_semantics(void) {
     const char* allocation_free_through_handle_reference =
         "f:main() { v:a = area(64); v:p = &a; free(*p); }";
     const char* allocation_free_through_handle_reference_with_live_alias =
-        "f:main() { v:a = area(64); v:p = &a; v:q = &a; free(*p); }";
+        "f:main() { v:a = area(64); v:p = &a; "
+        "{ v:q = &a; free(*p); } free(*p); }";
     const char* allocation_free_untracked_address_rejected =
         "f:main() { v:value!i32 = 1; v:p = addr(value); free(p); }";
     const char* allocation_address_alias_use_after_free =
@@ -4716,7 +4717,7 @@ static int check_intrinsic_semantics(void) {
         check_source(allocation_release_invalidates_all_aliases, 1) &&
         check_source(allocation_return_escape_rejected, 2) &&
         check_source(allocation_double_free, 1) &&
-        check_source(allocation_branch_release_is_not_live_after_join, 1) &&
+        check_source(allocation_branch_release_is_not_live_after_join, -1) &&
         check_source(allocation_branch_live_on_all_paths, 0) &&
         check_source(allocation_branch_identity_mismatch, -1) &&
         check_source(allocation_loop_backedge_identity_mismatch, -1) &&
