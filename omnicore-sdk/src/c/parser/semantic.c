@@ -17,7 +17,6 @@ static void semantic_release_scope_allocations(
 static void semantic_check_scope_allocations_closed(
     SemanticContext* ctx, uint32_t scope_depth, int explicitly_halted
 );
-static void semantic_check_global_allocations_closed(SemanticContext* ctx);
 static void exit_scope_internal(SemanticContext* ctx, int explicitly_halted);
 static void semantic_snapshot_allocations_destroy(ActiveAllocation* allocations);
 static int semantic_snapshot_allocations_clone(
@@ -4835,21 +4834,6 @@ static void semantic_check_scope_allocations_closed(
                 "Allocation leaves its owning scope without an explicit release.",
                 "Use release(addr(value)) / free(value), or terminate the owning table with ?; or }?; before leaving the scope.",
                 "The allocation is still active at the closing scope boundary. Every control-flow path must explicitly end its lifetime.",
-                0, 0);
-        }
-    }
-}
-
-static void semantic_check_global_allocations_closed(SemanticContext* ctx) {
-    ActiveAllocation* current;
-    if (!ctx) return;
-    for (current = ctx->active_allocations; current; current = current->next) {
-        if (current->function_depth == 0u && current->scope_depth == 0u) {
-            report_issue(ctx, (ASTNode*)current->origin,
-                ERR_SEMANTIC_TYPE_MISMATCH,
-                "Global allocation remains active when the program's declarations finish.",
-                "Release it from a reachable owner function with release(addr(value)) / free(value), or transfer it through a supported ownership contract.",
-                "Global allocations are not implicitly released at the end of Semantic analysis.",
                 0, 0);
         }
     }
@@ -13191,8 +13175,6 @@ static void semantic_check_node(
 
 void semantic_check(SemanticContext* ctx, ASTNode* node) {
     semantic_check_node(ctx, node, 1);
-    if (ctx && node && node->type == AST_PROGRAM)
-        semantic_check_global_allocations_closed(ctx);
 }
 
 void semantic_print_errors(SemanticContext* ctx) {
