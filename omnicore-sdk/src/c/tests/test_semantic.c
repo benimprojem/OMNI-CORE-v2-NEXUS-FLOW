@@ -1910,7 +1910,10 @@ static int check_correlated_function_allocation_alternatives(void) {
         "v:a = area(64); v:b = area(64); "
         "f:maybe_cleanup(cond!bool) { "
         "if (cond) { free(a); free(b); } } "
-        "f:wrapper(cond!bool) { maybe_cleanup(cond); }";
+        "f:wrapper(cond!bool) { maybe_cleanup(cond); } "
+        "f:split_cleanup(cond!bool) { "
+        "if (cond) { free(a); } els { free(b); } } "
+        "f:split_wrapper(cond!bool) { split_cleanup(cond); }";
     ParserContext* parser = parser_init_source(
         "semantic-correlated-effects.nxf",
         (const uint8_t*)source, strlen(source));
@@ -1918,10 +1921,14 @@ static int check_correlated_function_allocation_alternatives(void) {
     Slot* a = NULL;
     Slot* b = NULL;
     Slot* wrapper = NULL;
+    Slot* split_wrapper = NULL;
     SemanticFunctionAllocationAlternative* alternative;
     int alternative_count = 0;
     int saw_no_release = 0;
     int saw_both_released = 0;
+    int split_alternative_count = 0;
+    int saw_a_only = 0;
+    int saw_b_only = 0;
     int ok = 1;
     if (!parser) return 0;
     if (parser_run(parser) != 0 || !parser->ast_root) {
@@ -1938,8 +1945,12 @@ static int check_correlated_function_allocation_alternatives(void) {
         else if (slot->name && strcmp(slot->name, "b") == 0) b = slot;
         else if (slot->name && strcmp(slot->name, "wrapper") == 0)
             wrapper = slot;
+        else if (slot->name && strcmp(slot->name, "split_wrapper") == 0)
+            split_wrapper = slot;
     }
-    if (!a || !b || !wrapper || !wrapper->allocation_alternatives ||
+    if (!a || !b || !wrapper || !split_wrapper ||
+        !wrapper->allocation_alternatives ||
+        !split_wrapper->allocation_alternatives ||
         a->semantic_identity == 0u || b->semantic_identity == 0u) {
         ok = 0;
     } else {
@@ -1962,19 +1973,40 @@ static int check_correlated_function_allocation_alternatives(void) {
             } else if (effect_count == 2 && has_a && has_b) {
                 saw_both_released = 1;
             } else {
-                /* Independent per-allocation splitting would invent this. */
                 ok = 0;
             }
         }
+
+        for (alternative = split_wrapper->allocation_alternatives;
+             alternative; alternative = alternative->next) {
+            SemanticFunctionAllocationEffect* effect;
+            int effect_count = 0;
+            int has_a = 0;
+            int has_b = 0;
+            ++split_alternative_count;
+            for (effect = alternative->effects; effect; effect = effect->next) {
+                ++effect_count;
+                if (effect->target_slot_identity == a->semantic_identity)
+                    has_a = 1;
+                if (effect->target_slot_identity == b->semantic_identity)
+                    has_b = 1;
+            }
+            if (effect_count == 1 && has_a && !has_b) saw_a_only = 1;
+            else if (effect_count == 1 && !has_a && has_b) saw_b_only = 1;
+            else ok = 0;
+        }
     }
     if (alternative_count != 2 || !saw_no_release ||
-        !saw_both_released) ok = 0;
+        !saw_both_released || split_alternative_count != 2 ||
+        !saw_a_only || !saw_b_only) ok = 0;
     if (!ok) {
         fprintf(stderr,
             "Correlated function allocation alternatives failed "
-            "(errors=%d, alternatives=%d, no_release=%d, both_released=%d).\\n",
+            "(errors=%d, paired=%d, no_release=%d, both_released=%d, "
+            "split=%d, a_only=%d, b_only=%d).\\n",
             semantic.error_count, alternative_count, saw_no_release,
-            saw_both_released);
+            saw_both_released, split_alternative_count, saw_a_only,
+            saw_b_only);
     }
     semantic_destroy(&semantic);
     parser_destroy(parser);
