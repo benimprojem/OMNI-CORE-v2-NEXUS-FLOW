@@ -1562,3 +1562,14 @@ Status: **VERIFIED — Handler relocation slice**. This does not close the remai
 - Different statements and side effects inside the branches do not alter this rule. Both branches may release the same allocation after performing different work; each branch's own state is authoritative.
 - This supersedes the preceding checkpoint's `may_be_released` representation as a design decision. Existing tests that merely expect a blanket rejection after a one-sided release must be revisited and rewritten to assert path-by-path behavior and correct diagnostics.
 - Implementation is not yet changed by this design note. SEM-005 remains **IN_PROGRESS — NOT VERIFIED**; OIR remains gated. Next implementation unit: introduce explicit allocation-state alternatives in Semantic snapshots and propagate them through if/elsif, loop back-edge, break/continue, return and interprocedural function-effect summaries.
+
+
+#### Implementation checkpoint — feasible allocation path states (2026-11-26)
+
+- Replaced the single merged allocation list and its `may_be_released` flag with `AllocationPathState`: each list node owns an independent set of live allocation identities.
+- Snapshot capture/restore now clones the complete set of feasible allocation paths. Branch merge appends distinct path states instead of combining allocation records; identical allocation states are deduplicated.
+- Allocation release validates every feasible incoming path before mutating any path. A handle is considered definitely live only when its identity exists on every feasible path.
+- Scope and function exit checks inspect each path and report an allocation that remains live on any feasible path.
+- Corrected the implicit false arm of an `if` without `els`: it now restores the pre-branch allocation state before joining, rather than accidentally inheriting the true arm's release.
+- Added regression fixtures for both branches releasing the same allocation despite different surrounding work, one-sided release followed by access, and one-sided release leaving a scope leak.
+- **Not yet verified:** no successful build or CI result is available for these commits. Loop fixed-point/iteration behavior and interprocedural function allocation-effect alternatives still require dedicated path-sensitive treatment. SEM-005 remains IN_PROGRESS; OIR remains gated.
