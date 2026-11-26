@@ -2945,6 +2945,8 @@ defer {
 - İç/offset adresler, başka allocation’a ait adresler ve provenance bilgisi olmayan ham adresler reddedilir.
 - Serbest bırakma sonrasında aynı allocation’a bağlı tüm pointer/handle alias’ları geçersizdir.
 - free(resource) eski yazım olarak geriye dönük uyumluluk için korunur; yeni kodda release(addr(resource)) tercih edilir.
+- Her area/zone allocation'ı her kontrol akışı yolunda açıkça kapatılmalıdır. Normal `}` kapsam kapanışı tek başına release değildir ve canlı allocation varsa Semantic hatası üretir.
+- `?;` mevcut tablonun allocation'larını, `}?;` ise hemen önce kapanan bloğun allocation'larını sonlandırır; bu işlemler dış kapsamın sahip olduğu allocation'ları kapatmaz.
 - defer { ... } kapsamdan çıkışta çalıştırılacak cleanup gövdesini tanımlar.
 - Birden fazla defer'in LIFO/FIFO davranışı ve panic/jump/ret durumlarındaki ayrıntılar kısmen tanımlıdır. Cleanup ile ownership kuralları çelişmemelidir.
 
