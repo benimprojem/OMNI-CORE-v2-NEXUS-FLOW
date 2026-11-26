@@ -11368,7 +11368,10 @@ static void semantic_check_node(
                         else
                             semantic_reference_init_snapshot_restore(ctx, &before_state);
                     } else
-                        semantic_reference_init_snapshot_restore(ctx, &before_state);
+                        /* Both branches terminate: retain a terminal branch
+                           state rather than resurrecting allocations from
+                           before the if into the unreachable continuation. */
+                        semantic_reference_init_snapshot_restore(ctx, &then_state);
                 } else if (before_captured) {
                     semantic_reference_init_snapshot_restore(ctx, &before_state);
                 }
