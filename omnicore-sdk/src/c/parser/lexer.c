@@ -239,6 +239,8 @@ static OmniTokenType identifier_type(const char* start, size_t length) {
             if (length == 3 && memcmp(start, "ret", 3) == 0) return TOKEN_KW_RET;
             if (length == 3 && memcmp(start, "reg", 3) == 0) return TOKEN_KW_REG;
             if (length == 7 && memcmp(start, "receive", 7) == 0) return TOKEN_KW_RECEIVE;
+            /* release() is the ownership-oriented spelling of legacy free(). */
+            if (length == 7 && memcmp(start, "release", 7) == 0) return TOKEN_KW_FREE;
             break;
         case 's': 
             if (length > 1 && start[1] == 't') {
