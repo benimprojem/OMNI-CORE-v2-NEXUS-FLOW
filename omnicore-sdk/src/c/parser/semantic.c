@@ -13140,8 +13140,18 @@ static void semantic_check_node(
                         ActiveAllocation* active =
                             semantic_find_active_allocation(ctx, identity);
                         if (!active) {
-                            report_error(ctx, value, ERR_SEMANTIC_TYPE_MISMATCH,
-                                "free() requires an allocation identity that is definitely active on every control-flow path.");
+                            Slot* direct_handle =
+                                value && value->type == AST_IDENTIFIER
+                                    ? find_slot(ctx,
+                                        ((ASTIdentifier*)value)->name) : NULL;
+                            /* AST_IDENTIFIER already reports a stale tracked
+                               handle. Avoid a second, less-specific free error. */
+                            if (!direct_handle ||
+                                direct_handle->allocation_identity != identity) {
+                                report_error(ctx, value,
+                                    ERR_SEMANTIC_TYPE_MISMATCH,
+                                    "free() requires an allocation identity that is definitely active on every control-flow path.");
+                            }
                         } else if (active &&
                             semantic_allocation_has_active_borrows(ctx, identity) &&
                             !semantic_free_uses_sole_handle_reference_borrow(
