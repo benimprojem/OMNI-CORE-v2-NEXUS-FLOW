@@ -2701,9 +2701,12 @@ static int semantic_branch_terminates_flow(const ASTNode* branch) {
         while (statement->next) statement = statement->next;
         return semantic_branch_terminates_flow(statement);
     }
+    /* Return and table halts end the enclosing function path. break and
+       continue end only the current loop iteration; their allocation state
+       must still participate in the loop's post-state merge. */
     if (branch->type == AST_RETURN ||
-        branch->type == AST_BREAK ||
-        branch->type == AST_CONTINUE) return 1;
+        branch->type == AST_BLOCK_HALT ||
+        branch->type == AST_NEXUS_HALT) return 1;
     if (branch->type == AST_IF) {
         const ASTIf* conditional = (const ASTIf*)branch;
         return conditional->else_branch &&
