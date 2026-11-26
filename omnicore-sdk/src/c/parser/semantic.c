@@ -1357,11 +1357,19 @@ static void destroy_slot(Slot* slot) {
         field = next;
     }
     {
-        SemanticFunctionAllocationEffect* effect = slot->allocation_effects;
-        while (effect) {
-            SemanticFunctionAllocationEffect* next = effect->next;
-            free(effect);
-            effect = next;
+        SemanticFunctionAllocationAlternative* alternative =
+            slot->allocation_alternatives;
+        while (alternative) {
+            SemanticFunctionAllocationAlternative* next_alternative =
+                alternative->next;
+            SemanticFunctionAllocationEffect* effect = alternative->effects;
+            while (effect) {
+                SemanticFunctionAllocationEffect* next_effect = effect->next;
+                free(effect);
+                effect = next_effect;
+            }
+            free(alternative);
+            alternative = next_alternative;
         }
     }
 
@@ -6772,31 +6780,139 @@ static Slot* semantic_find_slot_by_identity(
     return NULL;
 }
 
-static int semantic_record_function_allocation_effect(
-    SemanticContext* ctx, Slot* function_slot, Slot* target_slot,
-    const ASTNode* free_origin
+static void semantic_function_allocation_alternatives_destroy(
+    SemanticFunctionAllocationAlternative* alternatives
+) {
+    while (alternatives) {
+        SemanticFunctionAllocationAlternative* next_alternative =
+            alternatives->next;
+        SemanticFunctionAllocationEffect* effect = alternatives->effects;
+        while (effect) {
+            SemanticFunctionAllocationEffect* next_effect = effect->next;
+            free(effect);
+            effect = next_effect;
+        }
+        free(alternatives);
+        alternatives = next_alternative;
+    }
+}
+
+static int semantic_allocation_path_contains(
+    const AllocationPathState* path, uint64_t identity
+) {
+    const ActiveAllocation* allocation;
+    if (!path || identity == 0u) return 0;
+    for (allocation = path->allocations; allocation;
+         allocation = allocation->next)
+        if (allocation->identity == identity) return 1;
+    return 0;
+}
+
+static int semantic_allocation_paths_contain(
+    const AllocationPathState* paths, uint64_t identity
+) {
+    const AllocationPathState* path;
+    if (!paths || identity == 0u) return 0;
+    for (path = paths; path; path = path->next)
+        if (!semantic_allocation_path_contains(path, identity)) return 0;
+    return 1;
+}
+
+static int semantic_function_allocation_alternatives_equal(
+    const SemanticFunctionAllocationAlternative* left,
+    const SemanticFunctionAllocationAlternative* right
+) {
+    const SemanticFunctionAllocationEffect* effect;
+    const SemanticFunctionAllocationEffect* candidate;
+    size_t left_count = 0u, right_count = 0u;
+    if (!left || !right) return left == right;
+    for (effect = left->effects; effect; effect = effect->next) ++left_count;
+    for (effect = right->effects; effect; effect = effect->next) ++right_count;
+    if (left_count != right_count) return 0;
+    for (effect = left->effects; effect; effect = effect->next) {
+        for (candidate = right->effects; candidate; candidate = candidate->next)
+            if (candidate->target_slot_identity ==
+                effect->target_slot_identity) break;
+        if (!candidate) return 0;
+    }
+    return 1;
+}
+
+static int semantic_function_allocation_alternative_add_effect(
+    SemanticContext* ctx, SemanticFunctionAllocationAlternative* alternative,
+    uint64_t target_slot_identity, const ASTNode* free_origin
 ) {
     SemanticFunctionAllocationEffect* effect;
-    if (!ctx || !function_slot || !target_slot ||
-        target_slot->semantic_identity == 0u) {
-        if (ctx) semantic_set_result_error(ctx, SEMANTIC_RESULT_INVALID_DATA);
-        return 0;
-    }
-    for (effect = function_slot->allocation_effects; effect;
-         effect = effect->next) {
-        if (effect->target_slot_identity == target_slot->semantic_identity) return 1;
-    }
-    effect = (SemanticFunctionAllocationEffect*)semantic_allocate(
-        ctx, sizeof(*effect));
+    if (!ctx || !alternative || target_slot_identity == 0u) return 0;
+    effect = (SemanticFunctionAllocationEffect*)semantic_callocate(
+        ctx, 1u, sizeof(*effect));
     if (!effect) {
         semantic_set_result_error(ctx, SEMANTIC_RESULT_OUT_OF_MEMORY);
         return 0;
     }
-    effect->target_slot_identity = target_slot->semantic_identity;
+    effect->target_slot_identity = target_slot_identity;
     effect->free_origin = free_origin;
-    effect->next = function_slot->allocation_effects;
-    function_slot->allocation_effects = effect;
+    effect->next = alternative->effects;
+    alternative->effects = effect;
     return 1;
+}
+
+static int semantic_capture_function_allocation_alternatives(
+    SemanticContext* ctx, Slot* function_slot,
+    const AllocationPathState* entry_paths
+) {
+    const AllocationPathState* exit_path;
+    SemanticFunctionAllocationAlternative* head = NULL;
+    SemanticFunctionAllocationAlternative* tail = NULL;
+    if (!ctx || !function_slot || !entry_paths) return 0;
+
+    for (exit_path = ctx->allocation_paths; exit_path;
+         exit_path = exit_path->next) {
+        SemanticFunctionAllocationAlternative* alternative =
+            (SemanticFunctionAllocationAlternative*)semantic_callocate(
+                ctx, 1u, sizeof(*alternative));
+        SemanticFunctionAllocationAlternative* existing;
+        Slot* target;
+        if (!alternative) {
+            semantic_set_result_error(ctx, SEMANTIC_RESULT_OUT_OF_MEMORY);
+            goto capture_failure;
+        }
+        for (target = ctx->head; target; target = target->next) {
+            uint64_t identity = target->allocation_identity;
+            if (target->semantic_identity == 0u || identity == 0u ||
+                target->function_depth >= ctx->function_depth ||
+                !semantic_allocation_paths_contain(entry_paths, identity) ||
+                semantic_allocation_path_contains(exit_path, identity))
+                continue;
+            if (!semantic_function_allocation_alternative_add_effect(
+                    ctx, alternative, target->semantic_identity, NULL)) {
+                semantic_function_allocation_alternatives_destroy(alternative);
+                goto capture_failure;
+            }
+        }
+
+        for (existing = head; existing; existing = existing->next) {
+            if (semantic_function_allocation_alternatives_equal(
+                    existing, alternative)) break;
+        }
+        if (existing) {
+            semantic_function_allocation_alternatives_destroy(alternative);
+        } else if (tail) {
+            tail->next = alternative;
+            tail = alternative;
+        } else {
+            head = tail = alternative;
+        }
+    }
+
+    semantic_function_allocation_alternatives_destroy(
+        function_slot->allocation_alternatives);
+    function_slot->allocation_alternatives = head;
+    return 1;
+
+capture_failure:
+    semantic_function_allocation_alternatives_destroy(head);
+    return 0;
 }
 
 static int semantic_allocation_has_active_borrows(
@@ -6847,128 +6963,92 @@ static int semantic_free_uses_sole_handle_reference_borrow(
     return 1;
 }
 
-/* A conditional callee release creates two feasible caller states:
-   one in which the allocation remains live and one in which it is released. */
-static int semantic_split_allocation_paths_on_release(
-    SemanticContext* ctx, uint64_t identity
-) {
-    const AllocationPathState* source;
-    AllocationPathState* head = NULL;
-    AllocationPathState* tail = NULL;
-    if (!ctx || identity == 0u || !ctx->allocation_paths) return 0;
-    for (source = ctx->allocation_paths; source; source = source->next) {
-        const ActiveAllocation* active;
-        for (active = source->allocations; active; active = active->next)
-            if (active->identity == identity) break;
-        if (!active) return 0;
-    }
-    for (source = ctx->allocation_paths; source; source = source->next) {
-        AllocationPathState* live_copy;
-        AllocationPathState* released_copy;
-        ActiveAllocation** link;
-        live_copy = (AllocationPathState*)semantic_callocate(
-            ctx, 1u, sizeof(*live_copy));
-        released_copy = (AllocationPathState*)semantic_callocate(
-            ctx, 1u, sizeof(*released_copy));
-        if (!live_copy || !released_copy) {
-            free(live_copy);
-            free(released_copy);
-            goto allocation_failure;
-        }
-        if (!semantic_snapshot_allocations_clone(
-                ctx, source->allocations, &live_copy->allocations) ||
-            !semantic_snapshot_allocations_clone(
-                ctx, source->allocations, &released_copy->allocations)) {
-            semantic_snapshot_allocations_destroy(live_copy->allocations);
-            semantic_snapshot_allocations_destroy(released_copy->allocations);
-            free(live_copy);
-            free(released_copy);
-            goto allocation_failure;
-        }
-        link = &released_copy->allocations;
-        while (*link) {
-            ActiveAllocation* current = *link;
-            if (current->identity == identity) {
-                *link = current->next;
-                free(current);
-                break;
-            }
-            link = &current->next;
-        }
-        if (tail) tail->next = live_copy;
-        else head = live_copy;
-        tail = live_copy;
-        tail->next = released_copy;
-        tail = released_copy;
-    }
-    semantic_allocation_paths_destroy(ctx->allocation_paths);
-    ctx->allocation_paths = head;
-    return 1;
-
-allocation_failure:
-    semantic_allocation_paths_destroy(head);
-    semantic_set_result_error(ctx, SEMANTIC_RESULT_OUT_OF_MEMORY);
-    return 0;
-}
-
-static int semantic_allocation_is_live_on_any_path(
-    const SemanticContext* ctx, uint64_t identity
-) {
-    const AllocationPathState* path;
-    if (!ctx || identity == 0u) return 0;
-    for (path = ctx->allocation_paths; path; path = path->next) {
-        const ActiveAllocation* active;
-        for (active = path->allocations; active; active = active->next)
-            if (active->identity == identity) return 1;
-    }
-    return 0;
-}
-
 static void semantic_apply_function_allocation_effects(
     SemanticContext* ctx, ASTNode* call_node, Slot* function_slot
 ) {
-    SemanticFunctionAllocationEffect* effect;
+    SemanticFunctionAllocationAlternative* alternative;
+    AllocationPathState* combined_head = NULL;
+    AllocationPathState* combined_tail = NULL;
+    const AllocationPathState* caller_path;
     if (!ctx || !function_slot || !function_slot->declaration_node ||
-        function_slot->declaration_node->type != AST_FUNC_DECL) return;
-    for (effect = function_slot->allocation_effects; effect;
-         effect = effect->next) {
-        Slot* target = semantic_find_slot_by_identity(
-            ctx, effect->target_slot_identity);
-        uint64_t identity;
-        if (!target) {
-            report_error(ctx, call_node, ERR_SEMANTIC_TYPE_MISMATCH,
-                "A called function may free an outer allocation whose owner binding is no longer in scope.");
-            continue;
-        }
-        identity = target->allocation_identity;
-        if (identity == 0u ||
-            !semantic_find_active_allocation(ctx, identity)) {
-            report_error(ctx, call_node, ERR_SEMANTIC_TYPE_MISMATCH,
-                "A called function may free an allocation handle that is moved, already released, or no longer active.");
-            continue;
-        }
-        if (semantic_allocation_has_active_borrows(ctx, identity)) {
-            report_error(ctx, call_node, ERR_SEMANTIC_TYPE_MISMATCH,
-                "A called function may free an allocation that is still borrowed at this call site.");
-            continue;
-        }
-        /* Propagate only effects on storage owned outside the current
-           function frame. Function-local allocations do not escape upward. */
-        if (ctx->current_function_slot &&
-            target->function_depth < ctx->function_depth) {
-            (void)semantic_record_function_allocation_effect(
-                ctx, ctx->current_function_slot, target, call_node);
-        }
-        if (effect->is_conditional) {
-            if (!semantic_split_allocation_paths_on_release(
-                    ctx, identity)) {
+        function_slot->declaration_node->type != AST_FUNC_DECL ||
+        !function_slot->allocation_alternatives || !ctx->allocation_paths)
+        return;
+
+    for (alternative = function_slot->allocation_alternatives;
+         alternative; alternative = alternative->next) {
+        SemanticFunctionAllocationEffect* effect;
+        for (effect = alternative->effects; effect; effect = effect->next) {
+            Slot* target = semantic_find_slot_by_identity(
+                ctx, effect->target_slot_identity);
+            uint64_t identity;
+            if (!target) {
                 report_error(ctx, call_node, ERR_SEMANTIC_TYPE_MISMATCH,
-                    "A conditional free effect could not be represented across all caller allocation paths.");
+                    "A called function may free an outer allocation whose owner binding is no longer in scope.");
+                return;
             }
-        } else {
-            (void)semantic_release_allocation(ctx, identity);
+            identity = target->allocation_identity;
+            if (identity == 0u ||
+                !semantic_find_active_allocation(ctx, identity)) {
+                report_error(ctx, call_node, ERR_SEMANTIC_TYPE_MISMATCH,
+                    "A called function may free an allocation handle that is moved, already released, or no longer active.");
+                return;
+            }
+            if (semantic_allocation_has_active_borrows(ctx, identity)) {
+                report_error(ctx, call_node, ERR_SEMANTIC_TYPE_MISMATCH,
+                    "A called function may free an allocation that is still borrowed at this call site.");
+                return;
+            }
         }
     }
+
+    for (caller_path = ctx->allocation_paths; caller_path;
+         caller_path = caller_path->next) {
+        for (alternative = function_slot->allocation_alternatives;
+             alternative; alternative = alternative->next) {
+            AllocationPathState* copy =
+                (AllocationPathState*)semantic_callocate(ctx, 1u, sizeof(*copy));
+            SemanticFunctionAllocationEffect* effect;
+            if (!copy) goto apply_allocation_failure;
+            if (!semantic_snapshot_allocations_clone(
+                    ctx, caller_path->allocations, &copy->allocations)) {
+                free(copy);
+                goto apply_allocation_failure;
+            }
+            for (effect = alternative->effects; effect; effect = effect->next) {
+                Slot* target = semantic_find_slot_by_identity(
+                    ctx, effect->target_slot_identity);
+                uint64_t identity = target ? target->allocation_identity : 0u;
+                ActiveAllocation** link = &copy->allocations;
+                while (*link && (*link)->identity != identity)
+                    link = &(*link)->next;
+                if (!*link) {
+                    semantic_snapshot_allocations_destroy(copy->allocations);
+                    free(copy);
+                    report_error(ctx, call_node, ERR_SEMANTIC_TYPE_MISMATCH,
+                        "A function allocation-effect alternative is inconsistent with the caller's active allocation state.");
+                    semantic_allocation_paths_destroy(combined_head);
+                    return;
+                }
+                {
+                    ActiveAllocation* released = *link;
+                    *link = released->next;
+                    free(released);
+                }
+            }
+            if (combined_tail) combined_tail->next = copy;
+            else combined_head = copy;
+            combined_tail = copy;
+        }
+    }
+
+    semantic_allocation_paths_destroy(ctx->allocation_paths);
+    ctx->allocation_paths = combined_head;
+    return;
+
+apply_allocation_failure:
+    semantic_allocation_paths_destroy(combined_head);
+    semantic_set_result_error(ctx, SEMANTIC_RESULT_OUT_OF_MEMORY);
 }
 
 static void semantic_validate_call_arguments(
@@ -11452,19 +11532,14 @@ static void semantic_check_node(
                     ctx->current_function_slot = function_slot;
                     ++ctx->function_depth;
                     semantic_check(ctx, func->body);
-                    /* Classify each collected free effect against every feasible
-                       function exit. If any exit still owns the allocation, the
-                       effect is conditional; otherwise it is guaranteed. */
-                    {
-                        SemanticFunctionAllocationEffect* effect;
-                        for (effect = function_slot->allocation_effects;
-                             effect; effect = effect->next) {
-                            Slot* target = semantic_find_slot_by_identity(
-                                ctx, effect->target_slot_identity);
-                            effect->is_conditional = (uint8_t)(
-                                target && semantic_allocation_is_live_on_any_path(
-                                    ctx, target->allocation_identity));
-                        }
+                    /* Capture complete correlated release sets from each
+                       feasible function exit before restoring the caller state. */
+                    if (function_entry_state_captured &&
+                        !semantic_capture_function_allocation_alternatives(
+                            ctx, function_slot,
+                            function_entry_state.allocation_paths)) {
+                        semantic_set_result_error(
+                            ctx, SEMANTIC_RESULT_OUT_OF_MEMORY);
                     }
                     /* Function-local allocations cannot outlive the call frame,
                        even when the body reaches its closing brace normally. */
@@ -13072,10 +13147,6 @@ static void semantic_check_node(
                                     report_error(ctx, value,
                                         ERR_SEMANTIC_TYPE_MISMATCH,
                                         "A function cannot summarize free() through a local/computed alias of an outer allocation; free the direct owning binding or use an explicit ownership-transfer contract.");
-                                } else {
-                                    (void)semantic_record_function_allocation_effect(
-                                        ctx, ctx->current_function_slot,
-                                        freed_binding, value);
                                 }
                             }
                             /* A stale identifier already receives its primary
