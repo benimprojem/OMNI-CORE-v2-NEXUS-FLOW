@@ -13163,6 +13163,7 @@ static void semantic_check_node(
                             report_error(ctx, value, ERR_SEMANTIC_TYPE_MISMATCH,
                                 "free() requires the allocation's base handle/address; an interior or offset pointer cannot release the allocation.");
                         } else {
+                            int release_allowed = 1;
                             if (active &&
                                 active->function_depth < ctx->function_depth) {
                                 Slot* freed_binding = NULL;
@@ -13178,11 +13179,14 @@ static void semantic_check_node(
                                     report_error(ctx, value,
                                         ERR_SEMANTIC_TYPE_MISMATCH,
                                         "A function cannot summarize free() through a local/computed alias of an outer allocation; free the direct owning binding or use an explicit ownership-transfer contract.");
+                                    release_allowed = 0;
                                 }
                             }
-                            /* A stale identifier already receives its primary
-                               source-located diagnostic in the argument traversal. */
-                            (void)semantic_release_allocation(ctx, identity);
+                            /* A rejected ownership contract must not mutate any
+                               feasible allocation path or leak into a function
+                               summary as though the release had succeeded. */
+                            if (release_allowed)
+                                (void)semantic_release_allocation(ctx, identity);
                         }
                     } else if (value) {
                         const char* value_type = get_expr_type(ctx, value);
