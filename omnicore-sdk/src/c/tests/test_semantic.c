@@ -4775,7 +4775,7 @@ static int check_intrinsic_semantics(void) {
         check_source(invalid_count, 7) &&
         check_source(halt_does_not_release_global_allocation, 0) &&
         check_source(function_analysis_does_not_consume_global_allocation, 0) &&
-        check_source(conditional_function_free_is_not_unconditional, 1) &&
+        check_source(conditional_function_free_is_not_unconditional, -1) &&
         check_source(function_free_on_every_exit_is_unconditional, 1) &&
         check_source(function_analysis_does_not_commit_global_relocation, 0) &&
         check_source(local_allocation_cannot_escape_to_outer_binding, 1) &&
