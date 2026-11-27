@@ -4497,6 +4497,89 @@ static int check_allocation_snapshot_oom_failures(void) {
     return ok;
 }
 
+static int semantic_test_allocation_active_on_every_path(
+    const SemanticContext* semantic, uint64_t identity
+) {
+    const AllocationPathState* path;
+    if (!semantic || identity == 0u || !semantic->allocation_paths) return 0;
+    for (path = semantic->allocation_paths; path; path = path->next) {
+        const ActiveAllocation* active;
+        for (active = path->allocations; active; active = active->next)
+            if (active->identity == identity) break;
+        if (!active) return 0;
+    }
+    return 1;
+}
+
+static int check_snapshot_restore_oom_preserves_outer_allocation(void) {
+    const char* source =
+        "v:global_area = area(64); "
+        "f:release_global() { free(global_area); } "
+        "f:main() { echo(global_area); }";
+    ParserContext* parser = parser_init_source(
+        "snapshot-restore-rollback-oom.nxf",
+        (const uint8_t*)source, strlen(source));
+    uint32_t fail_at;
+    uint32_t allocation_count;
+    int ok = 1;
+    if (!parser) return 0;
+    if (parser_run(parser) != 0 || !parser->ast_root) {
+        parser_destroy(parser);
+        return 0;
+    }
+    {
+        SemanticContext baseline;
+        semantic_init(&baseline, "snapshot-restore-rollback-oom.nxf", NULL);
+        semantic_test_fail_allocation_at(&baseline, UINT32_MAX);
+        semantic_check(&baseline, (ASTNode*)parser->ast_root);
+        allocation_count =
+            semantic_test_get_allocation_attempts(&baseline);
+        if (baseline.result_status == SEMANTIC_RESULT_OUT_OF_MEMORY ||
+            baseline.error_count != 0 || allocation_count == 0u) {
+            fprintf(stderr,
+                "Snapshot restore rollback baseline is invalid (status=%d, errors=%d, attempts=%u).\\n",
+                (int)baseline.result_status, baseline.error_count,
+                allocation_count);
+            ok = 0;
+        }
+        semantic_destroy(&baseline);
+    }
+    for (fail_at = 1u; ok && fail_at <= allocation_count; ++fail_at) {
+        SemanticContext semantic;
+        Slot* global_area;
+        uint32_t attempts;
+        semantic_init(&semantic, "snapshot-restore-rollback-oom.nxf", NULL);
+        semantic_test_fail_allocation_at(&semantic, fail_at);
+        semantic_check(&semantic, (ASTNode*)parser->ast_root);
+        attempts = semantic_test_get_allocation_attempts(&semantic);
+        global_area = semantic.head;
+        while (global_area &&
+               (!global_area->name ||
+                strcmp(global_area->name, "global_area") != 0))
+            global_area = global_area->next;
+        if (attempts < fail_at ||
+            semantic.result_status != SEMANTIC_RESULT_OUT_OF_MEMORY ||
+            (global_area && global_area->allocation_identity != 0u &&
+             !semantic_test_allocation_active_on_every_path(
+                 &semantic, global_area->allocation_identity))) {
+            fprintf(stderr,
+                "Snapshot restore rollback fault %u/%u failed: attempts=%u status=%d global_identity=%llu active_every_path=%d.\\n",
+                fail_at, allocation_count, attempts,
+                (int)semantic.result_status,
+                (unsigned long long)(global_area
+                    ? global_area->allocation_identity : 0u),
+                global_area && global_area->allocation_identity != 0u
+                    ? semantic_test_allocation_active_on_every_path(
+                        &semantic, global_area->allocation_identity)
+                    : 0);
+            ok = 0;
+        }
+        semantic_destroy(&semantic);
+    }
+    parser_destroy(parser);
+    return ok;
+}
+
 static int check_function_allocation_effect_oom_failures(void) {
     const char* source =
         "v:global_a = area(64); v:global_b = area(32); "
@@ -5217,6 +5300,10 @@ int main(int argc, char** argv) {
     }
     if (!check_function_allocation_effect_oom_failures()) {
         fprintf(stderr, "Function allocation-effect OOM fail-closed checks failed.\\n");
+        return 1;
+    }
+    if (!check_snapshot_restore_oom_preserves_outer_allocation()) {
+        fprintf(stderr, "Snapshot restore OOM rollback-equivalence checks failed.\\n");
         return 1;
     }
     if (!check_returned_borrow_origin_oom_failures()) {
