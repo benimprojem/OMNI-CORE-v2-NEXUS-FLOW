@@ -5147,6 +5147,11 @@ static uint64_t semantic_expression_allocation_identity_depth(
         case AST_RELOCATE:
             return semantic_expression_allocation_identity_depth(
                 ctx, ((ASTRelocate*)expression)->target, depth + 1u, 0);
+        case AST_ASSIGNMENT:
+            /* Assignment expressions yield the assigned RHS value. Preserve
+               its allocation identity for call/return escape validation. */
+            return semantic_expression_allocation_identity_depth(
+                ctx, ((ASTBinaryExpr*)expression)->right, depth + 1u, 0);
         case AST_FREE:
         case AST_LEN:
         case AST_AREA:
@@ -5365,6 +5370,9 @@ static int semantic_expression_allocation_is_base_depth(
     if (expression->type == AST_RELOCATE)
         return semantic_expression_allocation_is_base_depth(
             ctx, ((ASTRelocate*)expression)->target, depth + 1u);
+    if (expression->type == AST_ASSIGNMENT)
+        return semantic_expression_allocation_is_base_depth(
+            ctx, ((ASTBinaryExpr*)expression)->right, depth + 1u);
     if (expression->type == AST_CAST)
         return semantic_expression_allocation_is_base_depth(
             ctx, ((ASTCast*)expression)->value, depth + 1u);
