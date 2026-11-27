@@ -634,11 +634,18 @@ static int check_handler_capture_semantics(void) {
     const char* captured_allocation_alias_becomes_stale =
         "f:main() { (h) <- area(64); v:alias = h; "
         "free(h); echo(alias); }";
+    const char* captured_safe_reference_can_be_read =
+        "f:main() { v:owner!i32 = 1; (reference) <- &owner; "
+        "v:value!i32 = *reference; }";
+    const char* captured_safe_reference_blocks_owner_mutation =
+        "f:main() { v:owner!i32 = 1; (reference) <- &owner; owner = 2; }";
     return check_source(captured_type_is_preserved, 0) &&
         check_source(self_capture_is_undefined, 1) &&
         check_source(duplicate_handler_capture, 1) &&
         check_source(captured_allocation_can_be_released, 0) &&
-        check_source(captured_allocation_alias_becomes_stale, 1);
+        check_source(captured_allocation_alias_becomes_stale, 1) &&
+        check_source(captured_safe_reference_can_be_read, 0) &&
+        check_source(captured_safe_reference_blocks_owner_mutation, 1);
 }
 static int check_malformed_nexus_and_argument_ast(void) {
     static const struct { ASTNodeType type; const char* message; } cases[] = {
