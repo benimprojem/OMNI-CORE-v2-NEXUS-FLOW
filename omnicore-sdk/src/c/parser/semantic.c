@@ -11908,6 +11908,15 @@ static void semantic_check_node(
                         ERR_SEMANTIC_RETURN_MISMATCH,
                         "Returning an allocation-derived handle/address is unsupported until the call result can preserve its allocation identity and lifetime contract.");
                 }
+                else if (semantic_expression_contains_allocation_handle(
+                             ctx, ret->operand)) {
+                    /* Aggregate expressions can contain multiple allocation
+                       handles and therefore have no single identity. They
+                       must not bypass the direct return escape boundary. */
+                    report_error(ctx, ret->operand,
+                        ERR_SEMANTIC_RETURN_MISMATCH,
+                        "Returning an aggregate containing an allocation-derived handle/address is unsupported because its allocation identities and lifetimes cannot be preserved by the call result.");
+                }
                 const char* returned_type = get_expr_type(ctx, ret->operand);
                 if (semantic_type_is_any(ctx, ctx->current_func_return_type) &&
                     semantic_expression_contains_safe_reference(
