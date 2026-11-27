@@ -3404,6 +3404,17 @@ static int semantic_expression_contains_safe_reference(
     if (!ctx || !expression) return 0;
     if (depth > 64u) return 1;
     switch (expression->type) {
+        case AST_AREA:
+        case AST_ZONE:
+            /* A fresh allocation expression is allocation-derived even before
+               the call-argument walk registers its active identity. */
+            return 1;
+        case AST_ADDR: {
+            ASTNode* argument = semantic_intrinsic_argument_value(
+                ((const ASTCall*)expression)->args);
+            return semantic_expression_contains_allocation_handle_depth(
+                ctx, argument, depth + 1u);
+        }
         case AST_ARRAY_LITERAL:
             for (current = ((const ASTArrayLiteral*)expression)->elements;
                  current; current = current->next) {
