@@ -4497,6 +4497,62 @@ static int check_allocation_snapshot_oom_failures(void) {
     return ok;
 }
 
+static int check_function_allocation_effect_oom_failures(void) {
+    const char* source =
+        "v:global_a = area(64); v:global_b = area(32); "
+        "f:maybe_cleanup(cond!bool) { "
+        "if (cond) { free(global_a); free(global_b); } } "
+        "f:wrapper(cond!bool) { maybe_cleanup(cond); } "
+        "f:main(cond!bool) { wrapper(cond); }";
+    ParserContext* parser = parser_init_source(
+        "function-allocation-effect-oom.nxf",
+        (const uint8_t*)source, strlen(source));
+    uint32_t fail_at;
+    uint32_t allocation_count;
+    int ok = 1;
+    if (!parser) return 0;
+    if (parser_run(parser) != 0 || !parser->ast_root) {
+        parser_destroy(parser);
+        return 0;
+    }
+    {
+        SemanticContext baseline;
+        semantic_init(&baseline, "function-allocation-effect-oom.nxf", NULL);
+        semantic_test_fail_allocation_at(&baseline, UINT32_MAX);
+        semantic_check(&baseline, (ASTNode*)parser->ast_root);
+        allocation_count =
+            semantic_test_get_allocation_attempts(&baseline);
+        if (baseline.result_status == SEMANTIC_RESULT_OUT_OF_MEMORY ||
+            baseline.error_count != 0 || allocation_count == 0u) {
+            fprintf(stderr,
+                "Function allocation-effect OOM baseline is invalid (status=%d, errors=%d, attempts=%u).\\n",
+                (int)baseline.result_status, baseline.error_count,
+                allocation_count);
+            ok = 0;
+        }
+        semantic_destroy(&baseline);
+    }
+    for (fail_at = 1u; ok && fail_at <= allocation_count; ++fail_at) {
+        SemanticContext semantic;
+        uint32_t attempts;
+        semantic_init(&semantic, "function-allocation-effect-oom.nxf", NULL);
+        semantic_test_fail_allocation_at(&semantic, fail_at);
+        semantic_check(&semantic, (ASTNode*)parser->ast_root);
+        attempts = semantic_test_get_allocation_attempts(&semantic);
+        if (attempts < fail_at ||
+            semantic.result_status != SEMANTIC_RESULT_OUT_OF_MEMORY) {
+            fprintf(stderr,
+                "Function allocation-effect fault injection %u/%u did not fail closed (attempts=%u, status=%d, errors=%d).\\n",
+                fail_at, allocation_count, attempts,
+                (int)semantic.result_status, semantic.error_count);
+            ok = 0;
+        }
+        semantic_destroy(&semantic);
+    }
+    parser_destroy(parser);
+    return ok;
+}
+
 static int check_borrow_snapshot_oom_failures(void) {
     const char* source =
         "f:read(left!&i32,right!&i32) {} "
@@ -5084,6 +5140,10 @@ int main(int argc, char** argv) {
     }
     if (!check_borrow_snapshot_oom_failures()) {
         fprintf(stderr, "Borrow snapshot OOM fail-closed checks failed.\\n");
+        return 1;
+    }
+    if (!check_function_allocation_effect_oom_failures()) {
+        fprintf(stderr, "Function allocation-effect OOM fail-closed checks failed.\\n");
         return 1;
     }
     if (!check_returned_borrow_origin_oom_failures()) {
