@@ -10722,6 +10722,9 @@ static void semantic_check_node(
                 ctx, capture->handler_name, SLOT_VAR, 0, captured_type,
                 node, 1, 0, 0, 0u);
             if (handler_slot) {
+                /* The captured expression has already been evaluated; the
+                   newly created Handler binding is initialized immediately. */
+                handler_slot->is_initialized = 1u;
                 /* A Handler capture stores the evaluated value. If that value
                    is an allocation-backed handle/address, keep the same
                    identity and base status so free(), stale-use and scope
