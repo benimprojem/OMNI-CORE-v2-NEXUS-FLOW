@@ -4468,6 +4468,7 @@ static int check_allocation_snapshot_oom_failures(void) {
     {
         SemanticContext baseline;
         semantic_init(&baseline, "allocation-snapshot-oom.nxf", NULL);
+        semantic_test_fail_allocation_at(&baseline, UINT32_MAX);
         semantic_check(&baseline, (ASTNode*)parser->ast_root);
         allocation_count =
             semantic_test_get_allocation_attempts(&baseline);
@@ -4519,6 +4520,7 @@ static int check_borrow_snapshot_oom_failures(void) {
     {
         SemanticContext baseline;
         semantic_init(&baseline, "borrow-snapshot-oom.nxf", NULL);
+        semantic_test_fail_allocation_at(&baseline, UINT32_MAX);
         semantic_check(&baseline, (ASTNode*)parser->ast_root);
         allocation_count =
             semantic_test_get_allocation_attempts(&baseline);
@@ -4567,6 +4569,7 @@ static int check_returned_borrow_origin_oom_failures(void) {
     {
         SemanticContext baseline;
         semantic_init(&baseline, "returned-borrow-origin-oom.nxf", NULL);
+        semantic_test_fail_allocation_at(&baseline, UINT32_MAX);
         semantic_check(&baseline, (ASTNode*)parser->ast_root);
         allocation_count =
             semantic_test_get_allocation_attempts(&baseline);
