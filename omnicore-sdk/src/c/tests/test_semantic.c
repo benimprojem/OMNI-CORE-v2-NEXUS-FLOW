@@ -4580,6 +4580,147 @@ static int check_snapshot_restore_oom_preserves_outer_allocation(void) {
     return ok;
 }
 
+static Slot* semantic_test_find_slot(
+    SemanticContext* semantic, const char* name
+) {
+    Slot* slot;
+    if (!semantic || !name) return NULL;
+    for (slot = semantic->head; slot; slot = slot->next)
+        if (slot->name && strcmp(slot->name, name) == 0) return slot;
+    return NULL;
+}
+
+static int check_branch_merge_oom_preserves_outer_allocation(void) {
+    const char* source =
+        "v:global_area = area(64); "
+        "f:main(cond!bool) { "
+        "if (cond) { free(global_area); } els { echo(global_area); } }";
+    ParserContext* parser = parser_init_source(
+        "branch-merge-allocation-rollback-oom.nxf",
+        (const uint8_t*)source, strlen(source));
+    uint32_t fail_at;
+    uint32_t allocation_count;
+    int ok = 1;
+    if (!parser) return 0;
+    if (parser_run(parser) != 0 || !parser->ast_root) {
+        parser_destroy(parser);
+        return 0;
+    }
+    {
+        SemanticContext baseline;
+        semantic_init(&baseline, "branch-merge-allocation-rollback-oom.nxf", NULL);
+        semantic_test_fail_allocation_at(&baseline, UINT32_MAX);
+        semantic_check(&baseline, (ASTNode*)parser->ast_root);
+        allocation_count =
+            semantic_test_get_allocation_attempts(&baseline);
+        if (baseline.result_status == SEMANTIC_RESULT_OUT_OF_MEMORY ||
+            baseline.error_count != 0 || allocation_count == 0u)
+            ok = 0;
+        semantic_destroy(&baseline);
+    }
+    for (fail_at = 1u; ok && fail_at <= allocation_count; ++fail_at) {
+        SemanticContext semantic;
+        Slot* global_area;
+        uint32_t attempts;
+        semantic_init(&semantic, "branch-merge-allocation-rollback-oom.nxf", NULL);
+        semantic_test_fail_allocation_at(&semantic, fail_at);
+        semantic_check(&semantic, (ASTNode*)parser->ast_root);
+        attempts = semantic_test_get_allocation_attempts(&semantic);
+        global_area = semantic_test_find_slot(&semantic, "global_area");
+        if (attempts < fail_at ||
+            semantic.result_status != SEMANTIC_RESULT_OUT_OF_MEMORY ||
+            (global_area && global_area->allocation_identity != 0u &&
+             !semantic_test_allocation_active_on_every_path(
+                 &semantic, global_area->allocation_identity))) {
+            fprintf(stderr,
+                "Branch-merge allocation rollback fault %u/%u failed (attempts=%u, status=%d).\\n",
+                fail_at, allocation_count, attempts,
+                (int)semantic.result_status);
+            ok = 0;
+        }
+        semantic_destroy(&semantic);
+    }
+    parser_destroy(parser);
+    return ok;
+}
+
+static int check_branch_merge_oom_preserves_borrow_graph(void) {
+    const char* source =
+        "v:owner!i32 = 1; v:other!i32 = 2; "
+        "&global_ref!i32 = &owner; "
+        "f:main(cond!bool) { "
+        "if (cond) { global_ref = &other; } "
+        "els { global_ref = &owner; } }";
+    ParserContext* parser = parser_init_source(
+        "branch-merge-borrow-rollback-oom.nxf",
+        (const uint8_t*)source, strlen(source));
+    uint32_t fail_at;
+    uint32_t allocation_count;
+    int ok = 1;
+    if (!parser) return 0;
+    if (parser_run(parser) != 0 || !parser->ast_root) {
+        parser_destroy(parser);
+        return 0;
+    }
+    {
+        SemanticContext baseline;
+        Slot* owner;
+        Slot* reference;
+        semantic_init(&baseline, "branch-merge-borrow-rollback-oom.nxf", NULL);
+        semantic_test_fail_allocation_at(&baseline, UINT32_MAX);
+        semantic_check(&baseline, (ASTNode*)parser->ast_root);
+        allocation_count =
+            semantic_test_get_allocation_attempts(&baseline);
+        owner = semantic_test_find_slot(&baseline, "owner");
+        reference = semantic_test_find_slot(&baseline, "global_ref");
+        if (baseline.result_status == SEMANTIC_RESULT_OUT_OF_MEMORY ||
+            baseline.error_count != 0 || allocation_count == 0u ||
+            !owner || !reference || !reference->is_initialized ||
+            reference->borrowed_from != owner ||
+            owner->shared_borrow_count != 1u) {
+            fprintf(stderr,
+                "Branch-merge borrow rollback baseline is invalid (status=%d, errors=%d).\\n",
+                (int)baseline.result_status, baseline.error_count);
+            ok = 0;
+        }
+        semantic_destroy(&baseline);
+    }
+    for (fail_at = 1u; ok && fail_at <= allocation_count; ++fail_at) {
+        SemanticContext semantic;
+        Slot* owner;
+        Slot* other;
+        Slot* reference;
+        uint32_t attempts;
+        semantic_init(&semantic, "branch-merge-borrow-rollback-oom.nxf", NULL);
+        semantic_test_fail_allocation_at(&semantic, fail_at);
+        semantic_check(&semantic, (ASTNode*)parser->ast_root);
+        attempts = semantic_test_get_allocation_attempts(&semantic);
+        owner = semantic_test_find_slot(&semantic, "owner");
+        other = semantic_test_find_slot(&semantic, "other");
+        reference = semantic_test_find_slot(&semantic, "global_ref");
+        if (attempts < fail_at ||
+            semantic.result_status != SEMANTIC_RESULT_OUT_OF_MEMORY ||
+            (reference && reference->is_initialized &&
+             (!owner || !other || reference->borrowed_from != owner ||
+              owner->shared_borrow_count != 1u ||
+              other->shared_borrow_count != 0u ||
+              !reference->borrow_origins ||
+              reference->borrow_origins->owner != owner ||
+              reference->borrow_origins->next != NULL))) {
+            fprintf(stderr,
+                "Branch-merge borrow rollback fault %u/%u failed (attempts=%u, status=%d, owner=%u, other=%u).\\n",
+                fail_at, allocation_count, attempts,
+                (int)semantic.result_status,
+                owner ? owner->shared_borrow_count : 0u,
+                other ? other->shared_borrow_count : 0u);
+            ok = 0;
+        }
+        semantic_destroy(&semantic);
+    }
+    parser_destroy(parser);
+    return ok;
+}
+
 static int check_snapshot_restore_oom_preserves_borrow_graph(void) {
     const char* source =
         "v:owner!i32 = 1; v:other!i32 = 2; "
@@ -5398,6 +5539,14 @@ int main(int argc, char** argv) {
     }
     if (!check_snapshot_restore_oom_preserves_borrow_graph()) {
         fprintf(stderr, "Snapshot restore OOM borrow-graph rollback checks failed.\\n");
+        return 1;
+    }
+    if (!check_branch_merge_oom_preserves_outer_allocation()) {
+        fprintf(stderr, "Branch-merge allocation rollback checks failed.\\n");
+        return 1;
+    }
+    if (!check_branch_merge_oom_preserves_borrow_graph()) {
+        fprintf(stderr, "Branch-merge borrow rollback checks failed.\\n");
         return 1;
     }
     if (!check_returned_borrow_origin_oom_failures()) {
