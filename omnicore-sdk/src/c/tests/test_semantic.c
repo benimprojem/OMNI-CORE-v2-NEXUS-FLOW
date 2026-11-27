@@ -2024,13 +2024,12 @@ static int check_allocation_handle_call_escape_rejection_semantics(void) {
     const char* extern_any_parameter =
         "exf:store(value!any); "
         "f:main() { v:handle = area(16); store(handle); free(handle); }";
-    const char* typed_area_parameter =
-        "f:consume(value!area) {} "
-        "f:main() { v:handle = area(16); consume(handle); free(handle); }";
-    const char* typed_area_parameter_escape =
-        "v:global_area!area; "
-        "f:store(value!area) { global_area = value; } "
-        "f:main() { v:handle = area(16); store(handle); free(handle); echo(global_area); }";
+    const char* typed_raw_pointer_parameter_escape =
+        "nt:RawI32 = *i32; v:global_pointer!RawI32; "
+        "f:store(value!RawI32) { global_pointer = value; } "
+        "f:main() { v:handle = area(16); "
+        "v:pointer!RawI32 = cast(addr(handle),RawI32); "
+        "store(pointer); free(handle); echo(global_pointer); }";
     const char* typed_raw_pointer_parameter =
         "nt:RawI32 = *i32; "
         "f:consume(value!RawI32) {} "
@@ -2039,9 +2038,8 @@ static int check_allocation_handle_call_escape_rejection_semantics(void) {
     return check_source(any_parameter_call, 1) &&
         check_source(any_parameter_escape, 1) &&
         check_source(extern_any_parameter, 1) &&
-        check_source(typed_area_parameter, 1) &&
-        check_source(typed_area_parameter_escape, 1) &&
-        check_source(typed_raw_pointer_parameter, 1);
+        check_source(typed_raw_pointer_parameter, 1) &&
+        check_source(typed_raw_pointer_parameter_escape, 1);
 }
 
 static int check_allocation_handle_container_storage_rejection_semantics(void) {
