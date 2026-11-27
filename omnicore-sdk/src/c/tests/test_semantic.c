@@ -4580,6 +4580,96 @@ static int check_snapshot_restore_oom_preserves_outer_allocation(void) {
     return ok;
 }
 
+static int check_snapshot_restore_oom_preserves_borrow_graph(void) {
+    const char* source =
+        "v:owner!i32 = 1; v:other!i32 = 2; "
+        "&global_ref!i32 = &owner; "
+        "f:rebind_global() { global_ref = &other; } "
+        "f:main() { v:value!i32 = *global_ref; }";
+    ParserContext* parser = parser_init_source(
+        "snapshot-restore-borrow-rollback-oom.nxf",
+        (const uint8_t*)source, strlen(source));
+    uint32_t fail_at;
+    uint32_t allocation_count;
+    int ok = 1;
+    if (!parser) return 0;
+    if (parser_run(parser) != 0 || !parser->ast_root) {
+        parser_destroy(parser);
+        return 0;
+    }
+    {
+        SemanticContext baseline;
+        Slot* owner;
+        Slot* reference;
+        semantic_init(&baseline, "snapshot-restore-borrow-rollback-oom.nxf", NULL);
+        semantic_test_fail_allocation_at(&baseline, UINT32_MAX);
+        semantic_check(&baseline, (ASTNode*)parser->ast_root);
+        allocation_count =
+            semantic_test_get_allocation_attempts(&baseline);
+        owner = baseline.head;
+        while (owner && (!owner->name || strcmp(owner->name, "owner") != 0))
+            owner = owner->next;
+        reference = baseline.head;
+        while (reference &&
+               (!reference->name || strcmp(reference->name, "global_ref") != 0))
+            reference = reference->next;
+        if (baseline.result_status == SEMANTIC_RESULT_OUT_OF_MEMORY ||
+            baseline.error_count != 0 || allocation_count == 0u ||
+            !owner || !reference || !reference->is_initialized ||
+            reference->borrowed_from != owner ||
+            owner->shared_borrow_count != 1u) {
+            fprintf(stderr,
+                "Snapshot borrow rollback baseline is invalid (status=%d, errors=%d, attempts=%u, owner_borrows=%u).\\n",
+                (int)baseline.result_status, baseline.error_count,
+                allocation_count, owner ? owner->shared_borrow_count : 0u);
+            ok = 0;
+        }
+        semantic_destroy(&baseline);
+    }
+    for (fail_at = 1u; ok && fail_at <= allocation_count; ++fail_at) {
+        SemanticContext semantic;
+        Slot* owner;
+        Slot* other;
+        Slot* reference;
+        uint32_t attempts;
+        semantic_init(&semantic, "snapshot-restore-borrow-rollback-oom.nxf", NULL);
+        semantic_test_fail_allocation_at(&semantic, fail_at);
+        semantic_check(&semantic, (ASTNode*)parser->ast_root);
+        attempts = semantic_test_get_allocation_attempts(&semantic);
+        owner = semantic.head;
+        while (owner && (!owner->name || strcmp(owner->name, "owner") != 0))
+            owner = owner->next;
+        other = semantic.head;
+        while (other && (!other->name || strcmp(other->name, "other") != 0))
+            other = other->next;
+        reference = semantic.head;
+        while (reference &&
+               (!reference->name || strcmp(reference->name, "global_ref") != 0))
+            reference = reference->next;
+        if (attempts < fail_at ||
+            semantic.result_status != SEMANTIC_RESULT_OUT_OF_MEMORY ||
+            (reference && reference->is_initialized &&
+             (!owner || !other || reference->borrowed_from != owner ||
+              owner->shared_borrow_count != 1u ||
+              other->shared_borrow_count != 0u ||
+              !reference->borrow_origins ||
+              reference->borrow_origins->owner != owner))) {
+            fprintf(stderr,
+                "Snapshot borrow rollback fault %u/%u failed: attempts=%u status=%d owner_borrows=%u other_borrows=%u reference_owner=%s.\\n",
+                fail_at, allocation_count, attempts,
+                (int)semantic.result_status,
+                owner ? owner->shared_borrow_count : 0u,
+                other ? other->shared_borrow_count : 0u,
+                reference && reference->borrowed_from
+                    ? reference->borrowed_from->name : "<none>");
+            ok = 0;
+        }
+        semantic_destroy(&semantic);
+    }
+    parser_destroy(parser);
+    return ok;
+}
+
 static int check_function_allocation_effect_oom_failures(void) {
     const char* source =
         "v:global_a = area(64); v:global_b = area(32); "
@@ -5304,6 +5394,10 @@ int main(int argc, char** argv) {
     }
     if (!check_snapshot_restore_oom_preserves_outer_allocation()) {
         fprintf(stderr, "Snapshot restore OOM rollback-equivalence checks failed.\\n");
+        return 1;
+    }
+    if (!check_snapshot_restore_oom_preserves_borrow_graph()) {
+        fprintf(stderr, "Snapshot restore OOM borrow-graph rollback checks failed.\\n");
         return 1;
     }
     if (!check_returned_borrow_origin_oom_failures()) {
