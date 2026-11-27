@@ -2019,7 +2019,7 @@ static int check_allocation_handle_call_escape_rejection_semantics(void) {
         "f:main() { v:handle = area(16); consume(handle); free(handle); }";
     const char* any_inline_allocation_expression =
         "f:consume(value!any) {} "
-        "f:main() { consume(area(16)); }";
+        "f:main() { consume(area(16)); ?; }";
     const char* any_parameter_escape =
         "v:global!any; "
         "f:store(value!any) { global = value; } "
