@@ -986,6 +986,14 @@ Added a monotonic context-local identity to reference-binding Slots and recorded
 - **Closure boundary:** this interprocedural allocation-effect slice is VERIFIED. SEM-005 as a whole remains IN_PROGRESS; pointer-expression provenance, call/return/thread-capture escape contracts, borrow/lifetime path joins and the remaining diagnostic matrix still require audit. OIR remains gated.
 
 
+
+### SEM-005 — allocation release diagnostic cardinality and locations (2026-11-27)
+
+- Added a release diagnostic matrix asserting exactly one diagnostic, the expected semantic error code, line 1, and the exact argument column for: freeing an interior/offset pointer, freeing an untracked address, and using a handle again after double-free.
+- Failure record: run [5732](https://github.com/benimprojem/OMNI-CORE-v2-NEXUS-FLOW/actions/runs/46052898290) showed that initializing a raw-pointer NewType directly from `null` produced an additional type error, so the fixture did not isolate the release diagnostic. The untracked-address case now uses the already-supported `free(4096)` form.
+- Exact implementation/test head: `667b86a8bec00cdc4d8b1152e188016e6f15db49`. Exact-head CI [5733](https://github.com/benimprojem/OMNI-CORE-v2-NEXUS-FLOW/actions/runs/46053091103) passed all five jobs: Linux/Windows/macOS CTest 74/74, ASan/UBSan, and Valgrind.
+- **Status:** this diagnostic sub-slice is VERIFIED. The complete release-path diagnostic matrix remains open; SEM-005 stays IN_PROGRESS and OIR remains gated.
+
 ### SEM-005 — allocation-derived call/return escape boundaries (2026-11-27)
 
 - Pointer provenance audit confirmed the existing rules for direct handle aliases, `addr()`, pointer copies, `p + offset`, pointer subtraction, explicit raw-pointer casts, and base-only `free()` / `release()`. Interior/offset pointers preserve liveness identity but cannot release or relocate the allocation.
