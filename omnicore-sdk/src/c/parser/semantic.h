@@ -190,6 +190,9 @@ typedef struct {
     ThreadBlockEntry* thread_block_tail;
     ThreadBlockEntry* active_thread_block;
     uint32_t thread_capture_copy_depth;
+    /* Lambda closures have no explicit ownership/capture contract yet. */
+    uint32_t lambda_depth;
+    uint32_t lambda_capture_base_depth;
     uint64_t next_borrow_identity; /* Monotonic SemanticContext-local borrow identity source. */
     uint64_t next_slot_identity; /* Monotonic identity source for live Semantic Slots. */
     AllocationPathState* allocation_paths; /* Independent feasible allocation states. */
