@@ -3095,6 +3095,22 @@ static int check_array_type_semantics(void) {
         check_source(non_lvalue_assignment,1);
 }
 
+static int check_lambda_capture_lifetime_semantics(void) {
+    const char* allocation_handle_capture =
+        "f:main() { v:a = area(64); v:callback = f:() > a; free(a); }";
+    const char* safe_reference_capture =
+        "f:main() { v:owner!i32 = 1; &reference!i32 = &owner; "
+        "v:callback = f:() > *reference; }";
+    const char* scalar_capture_is_allowed =
+        "f:main() { v:value!i32 = 1; v:callback = f:() > value; }";
+    const char* lambda_parameter_shadows_outer_handle =
+        "f:main() { v:a = area(64); v:callback = f:(a) > a; free(a); }";
+    return check_source(allocation_handle_capture, 1) &&
+        check_source(safe_reference_capture, 1) &&
+        check_source(scalar_capture_is_allowed, 0) &&
+        check_source(lambda_parameter_shadows_outer_handle, 0);
+}
+
 static int check_extended_ast_semantics(void) {
     const char* valid =
         "nt:enum: Choice { Range(start!i32, end!i32), Other }"
@@ -5923,6 +5939,10 @@ if (!check_call_temporary_borrow_semantics()) {
     }
     if (!check_newtype_result_base_metadata()) {
         fprintf(stderr, "NewType SemanticResult metadata checks failed.\n");
+        return 1;
+    }
+    if (!check_lambda_capture_lifetime_semantics()) {
+        fprintf(stderr, "Lambda capture lifetime checks failed.\n");
         return 1;
     }
     if (!check_extended_ast_semantics()) {
