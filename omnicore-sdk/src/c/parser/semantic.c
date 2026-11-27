@@ -10731,6 +10731,10 @@ static void semantic_check_node(
                 handler_slot->allocation_is_base =
                     (uint8_t)semantic_expression_allocation_is_base(
                         ctx, capture->expr);
+                /* Safe-reference captures need the same borrow-origin graph
+                   and owner accounting as ordinary reference initializers. */
+                semantic_register_borrow_binding(
+                    ctx, handler_slot, capture->expr);
                 semantic_record_annotation(
                     ctx, node, handler_slot, handler_slot->type_name,
                     SEMANTIC_RESULT_VALUE_LVALUE);
