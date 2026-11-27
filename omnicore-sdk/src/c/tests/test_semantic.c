@@ -2038,11 +2038,18 @@ static int check_allocation_handle_call_escape_rejection_semantics(void) {
         "f:consume(value!RawI32) {} "
         "f:main() { v:handle = area(16); "
         "consume(cast(addr(handle),RawI32)); free(handle); }";
+    const char* typed_raw_pointer_assignment_argument =
+        "nt:RawI32 = *i32; "
+        "f:consume(value!RawI32) {} "
+        "f:main() { v:handle = area(16); "
+        "v:pointer!RawI32 = cast(addr(handle),RawI32); "
+        "consume(pointer = cast(addr(handle),RawI32)); free(handle); }";
     return check_source(any_parameter_call, 1) &&
         check_source(any_inline_allocation_expression, 1) &&
         check_source(any_parameter_escape, 1) &&
         check_source(extern_any_parameter, 1) &&
         check_source(typed_raw_pointer_parameter, 1) &&
+        check_source(typed_raw_pointer_assignment_argument, 1) &&
         check_source(typed_raw_pointer_parameter_escape, 1);
 }
 
@@ -2052,7 +2059,12 @@ static int check_allocation_handle_return_escape_semantics(void) {
         "f:get_pointer()!RawI32 { ret cast(addr(global_area),RawI32); } "
         "f:main() { v:pointer!RawI32 = get_pointer(); "
         "free(global_area); echo(pointer); }";
-    return check_source(global_allocation_return_escape, 1);
+    const char* assignment_expression_return_escape =
+        "nt:RawI32 = *i32; v:global_area = area(64); "
+        "f:get_pointer()!RawI32 { v:pointer!RawI32; "
+        "ret pointer = cast(addr(global_area),RawI32); }";
+    return check_source(global_allocation_return_escape, 1) &&
+        check_source(assignment_expression_return_escape, 1);
 }
 
 static int check_allocation_handle_container_storage_rejection_semantics(void) {
