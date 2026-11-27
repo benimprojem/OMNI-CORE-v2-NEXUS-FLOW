@@ -5257,6 +5257,12 @@ static int check_intrinsic_semantics(void) {
     const char* allocation_branch_release_one_path_then_read =
         "f:check(cond!bool) { v:a = area(64); "
         "if (cond) { free(a); } echo(a); }";
+    const char* allocation_block_halt_branch_release_then_read =
+        "f:check(cond!bool) { v:a = area(64); "
+        "if (cond) { free(a); }?; els { echo(a); } echo(a); }";
+    const char* allocation_block_halt_implicit_false_path =
+        "f:check(cond!bool) { v:a = area(64); "
+        "if (cond) { free(a); }?; echo(a); }";
     const char* allocation_branch_release_one_path_scope_leak =
         "f:check(cond!bool) { v:a = area(64); "
         "if (cond) { free(a); } }";
@@ -5401,6 +5407,8 @@ static int check_intrinsic_semantics(void) {
         check_source(allocation_branch_release_on_all_paths, 0) &&
         check_source(allocation_branch_release_both_paths_with_distinct_work, 0) &&
         check_source(allocation_branch_release_one_path_then_read, 2) &&
+        check_source(allocation_block_halt_branch_release_then_read, 2) &&
+        check_source(allocation_block_halt_implicit_false_path, 2) &&
         check_source(allocation_branch_release_one_path_scope_leak, 1) &&
         check_source(allocation_branch_live_on_all_paths, 0) &&
         check_source(allocation_branch_identity_mismatch, -1) &&
