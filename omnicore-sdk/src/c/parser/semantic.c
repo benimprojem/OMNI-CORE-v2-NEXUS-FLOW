@@ -51,6 +51,8 @@ void semantic_init(SemanticContext* ctx, const char* filename, const char* lang_
     ctx->thread_block_tail = NULL;
     ctx->active_thread_block = NULL;
     ctx->thread_capture_copy_depth = 0u;
+    ctx->lambda_depth = 0u;
+    ctx->lambda_capture_base_depth = 0u;
     ctx->next_borrow_identity = 0u;
     ctx->next_slot_identity = 0u;
     ctx->allocation_paths = NULL;
@@ -9940,6 +9942,13 @@ static void semantic_check_node(
                     "Assign a valid pointer/reference value before reading, dereferencing, passing, or returning this binding.",
                     "Assign a valid pointer/reference value before reading, dereferencing, passing, or returning this binding.",
                     0, 0);
+            } else if (resolved && ctx->lambda_depth != 0u &&
+                (uint32_t)resolved->depth <= ctx->lambda_capture_base_depth &&
+                (resolved->allocation_identity != 0u ||
+                 semantic_type_contains_safe_reference(
+                     ctx, resolved->type_name, 0u))) {
+                report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH,
+                    "Lambda cannot capture an allocation-derived handle or safe reference because its closure has no verified lifetime/ownership contract.");
             } else if (resolved &&
                 ctx->borrow_operand_depth == 0u &&
                 ctx->assignment_target_depth == 0u &&
@@ -11186,11 +11195,18 @@ static void semantic_check_node(
         case AST_LAMBDA: {
             ASTLambda* lambda=(ASTLambda*)node;
             const char* enclosing_return_type=ctx->current_func_return_type;
+            uint32_t enclosing_lambda_depth=ctx->lambda_depth;
+            uint32_t enclosing_capture_base_depth=
+                ctx->lambda_capture_base_depth;
             ctx->current_func_return_type=NULL;
+            ctx->lambda_capture_base_depth=(uint32_t)ctx->current_depth;
+            ctx->lambda_depth=enclosing_lambda_depth+1u;
             enter_scope(ctx,node);
             semantic_check(ctx,lambda->params);
             semantic_check(ctx,lambda->body);
             exit_scope(ctx);
+            ctx->lambda_depth=enclosing_lambda_depth;
+            ctx->lambda_capture_base_depth=enclosing_capture_base_depth;
             ctx->current_func_return_type=enclosing_return_type;
             semantic_record_annotation(ctx,node,NULL,"any",
                 SEMANTIC_RESULT_VALUE_RVALUE);
