@@ -2101,6 +2101,7 @@ typedef struct SemanticReferenceInitSnapshot {
     SemanticReferenceInitEntry* entries;
     size_t count;
     AllocationPathState* allocation_paths;
+    uint8_t consumed;
 } SemanticReferenceInitSnapshot;
 
 /* Safe-reference bindings are usable only after a valid initializer or
@@ -2232,10 +2233,12 @@ static int semantic_reference_init_snapshot_capture(
     Slot* slot;
     size_t count = 0u;
     size_t index = 0u;
-    if (!ctx || !snapshot) return 0;
+    if (!ctx || !snapshot ||
+        ctx->result_status == SEMANTIC_RESULT_OUT_OF_MEMORY) return 0;
     snapshot->entries = NULL;
     snapshot->count = 0u;
     snapshot->allocation_paths = NULL;
+    snapshot->consumed = 0u;
     if (!semantic_allocation_paths_clone(
             ctx, ctx->allocation_paths, &snapshot->allocation_paths))
         return 0;
@@ -2348,16 +2351,72 @@ static void semantic_validate_borrow_relationships(
     }
 }
 
+static void semantic_reference_init_snapshot_restore_take(
+    SemanticContext* ctx, SemanticReferenceInitSnapshot* snapshot
+) {
+    size_t index;
+    if (!ctx || !snapshot || snapshot->consumed) return;
+
+    /* OOM fallback: the snapshot already owns a complete pre-operation graph.
+       Move it back into the context without requesting another allocation. */
+    for (index = 0u; index < snapshot->count; ++index) {
+        Slot* slot = snapshot->entries[index].slot;
+        if (slot) semantic_release_borrow_binding(ctx, slot);
+    }
+    for (index = 0u; index < snapshot->count; ++index) {
+        Slot* slot = snapshot->entries[index].slot;
+        BorrowOrigin* restored = snapshot->entries[index].borrow_origins;
+        const BorrowOrigin* origin;
+        snapshot->entries[index].borrow_origins = NULL;
+        if (!slot) {
+            semantic_snapshot_borrow_origins_destroy(restored);
+            continue;
+        }
+        slot->borrow_origins = restored;
+        if (restored) {
+            slot->borrowed_from = restored->owner;
+            slot->borrow_kind = restored->kind;
+            slot->borrow_path = restored->path;
+            for (origin = restored; origin; origin = origin->next) {
+                if (!origin->owner) continue;
+                if (origin->kind == 1u &&
+                    origin->owner->shared_borrow_count < UINT32_MAX)
+                    ++origin->owner->shared_borrow_count;
+                else if (origin->kind == 2u)
+                    origin->owner->mutable_borrow_active = 1u;
+            }
+        }
+        slot->borrow_origin = snapshot->entries[index].borrow_origin;
+        slot->borrow_suspended_by_identity =
+            snapshot->entries[index].borrow_suspended_by_identity;
+        slot->is_initialized = snapshot->entries[index].is_initialized;
+        slot->is_nullable = snapshot->entries[index].is_nullable;
+        slot->is_moved = snapshot->entries[index].is_moved;
+        slot->allocation_is_base = snapshot->entries[index].allocation_is_base;
+        slot->allocation_identity =
+            snapshot->entries[index].allocation_identity;
+        slot->callable_declaration =
+            snapshot->entries[index].callable_declaration;
+    }
+    semantic_release_all_allocations(ctx);
+    ctx->allocation_paths = snapshot->allocation_paths;
+    snapshot->allocation_paths = NULL;
+    snapshot->consumed = 1u;
+    semantic_validate_borrow_relationships(ctx);
+}
+
 static void semantic_reference_init_snapshot_restore(
-    SemanticContext* ctx, const SemanticReferenceInitSnapshot* snapshot
+    SemanticContext* ctx, SemanticReferenceInitSnapshot* snapshot
 ) {
     BorrowOrigin** restored_sets = NULL;
     AllocationPathState* restored_paths = NULL;
     size_t index;
-    if (!ctx || !snapshot) return;
+    if (!ctx || !snapshot || snapshot->consumed) return;
     if (!semantic_allocation_paths_clone(
-            ctx, snapshot->allocation_paths, &restored_paths))
+            ctx, snapshot->allocation_paths, &restored_paths)) {
+        semantic_reference_init_snapshot_restore_take(ctx, snapshot);
         return;
+    }
     if (snapshot->count == 0u) {
         semantic_release_all_allocations(ctx);
         ctx->allocation_paths = restored_paths;
@@ -2366,6 +2425,7 @@ static void semantic_reference_init_snapshot_restore(
     if (snapshot->count > SIZE_MAX / sizeof(*restored_sets)) {
         semantic_set_result_error(ctx, SEMANTIC_RESULT_OUT_OF_MEMORY);
         semantic_allocation_paths_destroy(restored_paths);
+        semantic_reference_init_snapshot_restore_take(ctx, snapshot);
         return;
     }
     restored_sets = (BorrowOrigin**)semantic_callocate(
@@ -2373,6 +2433,7 @@ static void semantic_reference_init_snapshot_restore(
     if (!restored_sets) {
         semantic_set_result_error(ctx, SEMANTIC_RESULT_OUT_OF_MEMORY);
         semantic_allocation_paths_destroy(restored_paths);
+        semantic_reference_init_snapshot_restore_take(ctx, snapshot);
         return;
     }
     for (index = 0u; index < snapshot->count; ++index) {
@@ -2384,6 +2445,7 @@ static void semantic_reference_init_snapshot_restore(
                 semantic_snapshot_borrow_origins_destroy(restored_sets[cleanup]);
             free(restored_sets);
             semantic_allocation_paths_destroy(restored_paths);
+            semantic_reference_init_snapshot_restore_take(ctx, snapshot);
             return;
         }
     }
@@ -2475,7 +2537,9 @@ static int semantic_reference_init_snapshot_merge(
 ) {
     SemanticReferenceInitSnapshot merged = {0};
     size_t index;
-    if (!ctx || !left || !right || left->count != right->count)
+    if (!ctx || !left || !right || left->consumed || right->consumed ||
+        ctx->result_status == SEMANTIC_RESULT_OUT_OF_MEMORY ||
+        left->count != right->count)
         return 0;
 
     merged.count = left->count;
@@ -2888,6 +2952,7 @@ static void semantic_reference_init_snapshot_destroy(
     snapshot->count = 0u;
     semantic_allocation_paths_destroy(snapshot->allocation_paths);
     snapshot->allocation_paths = NULL;
+    snapshot->consumed = 0u;
 }
 
 static int semantic_reference_return_has_stable_origin(
@@ -9195,7 +9260,8 @@ static void semantic_check_node(SemanticContext* ctx, ASTNode* node, int follow_
 static void semantic_check_node(
     SemanticContext* ctx, ASTNode* node, int follow_siblings
 ) {
-    if (!node) return;
+    if (!ctx || !node) return;
+    if (ctx->result_status == SEMANTIC_RESULT_OUT_OF_MEMORY) return;
     if (ctx->halted_function_depth == (uint32_t)ctx->function_depth) return;
 
     switch (node->type) {
