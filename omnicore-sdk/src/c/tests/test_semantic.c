@@ -639,13 +639,17 @@ static int check_handler_capture_semantics(void) {
         "v:value!i32 = *reference; }";
     const char* captured_safe_reference_blocks_owner_mutation =
         "f:main() { v:owner!i32 = 1; (reference) <- &owner; owner = 2; }";
+    const char* captured_shared_reference_copy_blocks_owner_mutation =
+        "f:main() { v:owner!i32 = 1; &first!i32 = &owner; "
+        "(second) <- first; owner = 2; }";
     return check_source(captured_type_is_preserved, 0) &&
         check_source(self_capture_is_undefined, 1) &&
         check_source(duplicate_handler_capture, 1) &&
         check_source(captured_allocation_can_be_released, 0) &&
         check_source(captured_allocation_alias_becomes_stale, 1) &&
         check_source(captured_safe_reference_can_be_read, 0) &&
-        check_source(captured_safe_reference_blocks_owner_mutation, 1);
+        check_source(captured_safe_reference_blocks_owner_mutation, 1) &&
+        check_source(captured_shared_reference_copy_blocks_owner_mutation, 1);
 }
 static int check_malformed_nexus_and_argument_ast(void) {
     static const struct { ASTNodeType type; const char* message; } cases[] = {
