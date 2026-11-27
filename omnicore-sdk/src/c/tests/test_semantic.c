@@ -4741,6 +4741,76 @@ static int check_allocation_diagnostic_location(void) {
     return found;
 }
 
+static int check_allocation_release_diagnostic_matrix(void) {
+    static const struct {
+        const char* source;
+        const char* expected_message;
+        unsigned int free_occurrence;
+    } cases[] = {
+        {
+            "f:main() { v:a = area(64); v:p = addr(a); "
+            "v:q = p + 4; free(q); free(a); }",
+            "base handle/address",
+            0u
+        },
+        {
+            "nt:RawI32 = *i32; "
+            "f:main() { v:p!RawI32 = null; free(p); }",
+            "active allocation identity",
+            0u
+        },
+        {
+            "f:main() { v:a = area(64); free(a); free(a); }",
+            "Allocation handle 'a' is no longer valid",
+            1u
+        }
+    };
+    size_t index;
+    for (index = 0u; index < sizeof(cases) / sizeof(cases[0]); ++index) {
+        const char* source = cases[index].source;
+        const char* free_node = strstr(source, "free(");
+        ParserContext* parser;
+        SemanticContext semantic;
+        Error* error;
+        int expected_column;
+        unsigned int occurrence;
+        for (occurrence = 0u;
+             free_node && occurrence < cases[index].free_occurrence;
+             ++occurrence)
+            free_node = strstr(free_node + 5, "free(");
+        if (!free_node) return 0;
+        expected_column = (int)(free_node - source) + 6;
+        parser = parser_init_source(
+            "allocation-release-diagnostics.nxf",
+            (const uint8_t*)source, strlen(source));
+        if (!parser) return 0;
+        if (parser_run(parser) != 0 || !parser->ast_root) {
+            parser_destroy(parser);
+            return 0;
+        }
+        semantic_init(&semantic, "allocation-release-diagnostics.nxf", NULL);
+        semantic_check(&semantic, (ASTNode*)parser->ast_root);
+        error = semantic.error_head;
+        if (semantic.error_count != 1 || !error || error->next ||
+            error->code != ERR_SEMANTIC_TYPE_MISMATCH ||
+            error->line != 1 || error->col != expected_column ||
+            !error->message ||
+            !strstr(error->message, cases[index].expected_message)) {
+            fprintf(stderr,
+                "Allocation release diagnostic case %llu mismatch: errors=%d expected-column=%d actual=%d message=%s\\n",
+                (unsigned long long)index, semantic.error_count,
+                expected_column, error ? error->col : 0,
+                error && error->message ? error->message : "<none>");
+            semantic_destroy(&semantic);
+            parser_destroy(parser);
+            return 0;
+        }
+        semantic_destroy(&semantic);
+        parser_destroy(parser);
+    }
+    return 1;
+}
+
 static int check_intrinsic_semantics(void) {
     const char* valid_memory =
         "f:main() { v:x!i32 = 1; v:p = addr(x); v:n!u64 = len(\"abc\"); "
@@ -5132,6 +5202,10 @@ int main(int argc, char** argv) {
     }
     if (!check_allocation_diagnostic_location()) {
         fprintf(stderr, "Allocation diagnostic source location checks failed.\\n");
+        return 1;
+    }
+    if (!check_allocation_release_diagnostic_matrix()) {
+        fprintf(stderr, "Allocation release diagnostic matrix checks failed.\\n");
         return 1;
     }
     if (!check_allocation_snapshot_oom_failures()) {
