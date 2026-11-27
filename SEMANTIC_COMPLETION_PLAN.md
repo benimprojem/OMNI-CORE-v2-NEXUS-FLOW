@@ -1060,3 +1060,11 @@ Added a monotonic context-local identity to reference-binding Slots and recorded
 - **Status:** assignment-expression and Handler-capture provenance is VERIFIED. SEM-005 remains IN_PROGRESS; the remaining expression-form, interprocedural effect, borrow/lifetime join, and diagnostic acceptance matrices remain gated before OIR.
 
 - Follow-up regression verifies that capturing an existing shared-reference binding clones its borrow-origin set and increments the owner's shared-borrow accounting; mutation of the owner remains rejected while the captured copy is live. Exact test head: 894a8dee3883cc2acbe0cd7cbb133a66319dc9cc. Exact-head CI [5758](https://github.com/benimprojem/OMNI-CORE-v2-NEXUS-FLOW/actions/runs/46069602174) passed all five jobs; Valgrind reported 0 errors and 0 lost bytes.
+
+
+### SEM-005 — aggregate return escape boundary (2026-11-27)
+
+- Return validation now checks recursively for allocation-derived handles inside tuple, array, and struct-literal expressions. These aggregate values have no single allocation identity, so returning one containing a tracked handle/address is rejected rather than bypassing the direct-handle return check.
+- Regressions cover tuple, array-literal, and struct-literal returns containing a global allocation handle.
+- Exact implementation/test head: 3434f639557b8477b79164412963e3e4fb9f8ca6. Exact-head CI [5761](https://github.com/benimprojem/OMNI-CORE-v2-NEXUS-FLOW/actions/runs/46070039596) passed all five jobs: Ubuntu, Windows, macOS, ASan/UBSan, and Valgrind.
+- **Status:** aggregate return escape rejection is VERIFIED. SEM-005 remains IN_PROGRESS; broader expression and control-flow acceptance matrices remain open.
