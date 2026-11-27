@@ -4754,8 +4754,7 @@ static int check_allocation_release_diagnostic_matrix(void) {
             0u
         },
         {
-            "nt:RawI32 = *i32; "
-            "f:main() { v:p!RawI32 = null; free(p); }",
+            "f:main() { free(4096); }",
             "active allocation identity",
             0u
         },
