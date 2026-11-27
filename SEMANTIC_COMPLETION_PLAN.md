@@ -146,7 +146,7 @@ The order below is a dependency order. Audit results may mark an item already im
 - Allocation identity is monotonic and independent of numeric addresses. A released identity is absent from the active registry permanently; a later allocation receives a distinct identity even when the request has the same size. Added a structural test that inspects the old and new Slot identities and verifies that only the new identity is active.
 - Ownership relocation requires the base handle, cannot cross function frames, cannot shorten the lifetime below a surviving alias, and cannot overwrite a different active destination owner.
 - Exact-head CI has now passed for the allocation identity/relocation, correlated function-free alternatives, typed call/return escape rejection, pointer alias reassignment, and exhaustive snapshot/function-effect OOM fault-injection checkpoints. The verified runs include Linux, Windows, macOS, ASan/UBSan and Valgrind.
-- Remaining SEM-005 verification: exact rollback-equivalence assertions proving failed snapshot clone/restore/merge leaves the pre-operation allocation/borrow graph unchanged (current OOM tests prove fail-closed status and memory safety, not full graph equality); pointer arithmetic and aggregate/index/member expression combinations beyond the focused direct/cast/offset/reassignment cases; nested loop control paths involving `break`/`continue`/`ret`/Halt; explicit typed-parameter and caller-visible return-origin/effect contracts (current behavior is conservative rejection where identity cannot be preserved); and the complete diagnostic cardinality/location matrix for release paths. Keep SEM-005 IN_PROGRESS until these gates and exact-head CI pass.
+- Remaining SEM-005 verification: exact rollback-equivalence for borrow-origin graphs and branch-merge failure (allocation-path restore after OOM now has an exhaustive every-allocation-index state assertion); pointer arithmetic and aggregate/index/member expression combinations beyond the focused direct/cast/offset/reassignment cases; nested loop control paths involving `break`/`continue`/`ret`/Halt; explicit typed-parameter and caller-visible return-origin/effect contracts (current behavior is conservative rejection where identity cannot be preserved); and the complete diagnostic cardinality/location matrix for release paths. Keep SEM-005 IN_PROGRESS until these gates and exact-head CI pass.
 
 - Inspect: safe `&T` / `&mut T`, raw `*T`, borrow exclusivity, projection overlap, lifetime origins, initialization, nullability, escape and callback return provenance.
 - Positive tests: independent struct fields/constant indexes, valid shared/exclusive borrow, initialized reference use, valid parameter-origin propagation.
@@ -986,6 +986,15 @@ Added a monotonic context-local identity to reference-binding Slots and recorded
 - **Closure boundary:** this interprocedural allocation-effect slice is VERIFIED. SEM-005 as a whole remains IN_PROGRESS; pointer-expression provenance, call/return/thread-capture escape contracts, borrow/lifetime path joins and the remaining diagnostic matrix still require audit. OIR remains gated.
 
 
+
+
+### SEM-005 — no-allocation snapshot restore fallback (2026-11-27)
+
+- Exact rollback test exposed a real OOM mutation: when allocation-path clone failed during function-declaration snapshot restore, the hypothetical `free(global_area)` remained in the live context. Run [5735](https://github.com/benimprojem/OMNI-CORE-v2-NEXUS-FLOW/actions/runs/46053511913) reproduced it at allocation fault `8/24`; the later `main()` could observe a global handle as stale.
+- Added an OOM-only restore fallback that moves the snapshot-owned allocation paths and borrow-origin lists back into the SemanticContext without requesting another allocation. The snapshot is marked consumed so later control-flow restore calls cannot reuse moved storage. Semantic traversal stops visiting subsequent AST nodes once OOM is recorded, while the active node completes its cleanup.
+- Added a deterministic rollback regression that injects failure at every semantic allocation point in a function-declaration analysis, then verifies the original global allocation identity is active on every feasible path whenever it had been registered.
+- Exact implementation/test head: `65013ecbc6f6ed394e9c32f17ac42793f25d2220`. Exact-head CI [5736](https://github.com/benimprojem/OMNI-CORE-v2-NEXUS-FLOW/actions/runs/46053872647) passed all five jobs: Linux/Windows/macOS CTest 74/74, ASan/UBSan, and Valgrind.
+- **Status:** allocation-path rollback on snapshot-restore OOM is VERIFIED. Exact borrow-origin graph equality under OOM and merge-failure rollback remain open; SEM-005 remains IN_PROGRESS and OIR remains gated.
 
 ### SEM-005 — allocation release diagnostic cardinality and locations (2026-11-27)
 
