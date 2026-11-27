@@ -10722,6 +10722,15 @@ static void semantic_check_node(
                 ctx, capture->handler_name, SLOT_VAR, 0, captured_type,
                 node, 1, 0, 0, 0u);
             if (handler_slot) {
+                /* A Handler capture stores the evaluated value. If that value
+                   is an allocation-backed handle/address, keep the same
+                   identity and base status so free(), stale-use and scope
+                   lifetime checks remain attached to the captured binding. */
+                handler_slot->allocation_identity =
+                    semantic_expression_allocation_identity(ctx, capture->expr);
+                handler_slot->allocation_is_base =
+                    (uint8_t)semantic_expression_allocation_is_base(
+                        ctx, capture->expr);
                 semantic_record_annotation(
                     ctx, node, handler_slot, handler_slot->type_name,
                     SEMANTIC_RESULT_VALUE_LVALUE);
