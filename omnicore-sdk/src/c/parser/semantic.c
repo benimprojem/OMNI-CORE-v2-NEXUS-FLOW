@@ -2792,6 +2792,31 @@ static int semantic_branch_terminates_flow(const ASTNode* branch) {
     return 0;
 }
 
+static int semantic_branch_exits_loop_or_function(
+    const ASTNode* branch
+) {
+    const ASTNode* statement;
+    if (!branch) return 0;
+    if (branch->type == AST_BLOCK) {
+        statement = ((const ASTBlock*)branch)->statements;
+        if (!statement) return 0;
+        while (statement->next) statement = statement->next;
+        return semantic_branch_exits_loop_or_function(statement);
+    }
+    if (branch->type == AST_RETURN ||
+        branch->type == AST_BLOCK_HALT ||
+        branch->type == AST_NEXUS_HALT ||
+        branch->type == AST_BREAK) return 1;
+    if (branch->type == AST_IF) {
+        const ASTIf* conditional = (const ASTIf*)branch;
+        return conditional->else_branch &&
+            semantic_branch_exits_loop_or_function(conditional->then_branch) &&
+            semantic_branch_exits_loop_or_function(conditional->else_branch);
+    }
+    /* A continue or a path that falls through reaches the loop back-edge. */
+    return 0;
+}
+
 static void semantic_snapshot_allocations_destroy(
     ActiveAllocation* allocations
 ) {
@@ -13110,6 +13135,8 @@ static void semantic_check_node(
                 int after_captured = 0;
                 int body_terminates = semantic_branch_terminates_flow(
                     loop->body);
+                int infinite_body_exits =
+                    semantic_branch_exits_loop_or_function(loop->body);
                 int terminal_body_releases_outer = 0;
                 if (loop->body) semantic_check(ctx, loop->body);
                 /* A conditional loop may execute zero times. If every body
@@ -13126,7 +13153,13 @@ static void semantic_check_node(
                         semantic_snapshot_has_outer_allocation_release(
                             ctx, &before_body, &after_body);
                 if (captured && after_captured) {
-                    if (body_terminates && loop->loop_type != 0 &&
+                    /* An infinite loop has no zero-iteration exit. If every
+                       body path breaks or terminates the function, its
+                       post-state consists only of the captured exit paths. */
+                    if (loop->loop_type == 0 && infinite_body_exits) {
+                        semantic_reference_init_snapshot_restore(
+                            ctx, &after_body);
+                    } else if (body_terminates && loop->loop_type != 0 &&
                         !terminal_body_releases_outer) {
                         semantic_reference_init_snapshot_restore(
                             ctx, &before_body);
