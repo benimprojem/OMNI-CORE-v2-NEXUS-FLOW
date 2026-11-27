@@ -4458,28 +4458,39 @@ static int check_allocation_snapshot_oom_failures(void) {
         "allocation-snapshot-oom.nxf",
         (const uint8_t*)source, strlen(source));
     uint32_t fail_at;
+    uint32_t allocation_count;
     int ok = 1;
     if (!parser) return 0;
     if (parser_run(parser) != 0 || !parser->ast_root) {
         parser_destroy(parser);
         return 0;
     }
-    for (fail_at = 1u; fail_at <= 96u; ++fail_at) {
+    {
+        SemanticContext baseline;
+        semantic_init(&baseline, "allocation-snapshot-oom.nxf", NULL);
+        semantic_check(&baseline, (ASTNode*)parser->ast_root);
+        allocation_count =
+            semantic_test_get_allocation_attempts(&baseline);
+        if (baseline.result_status == SEMANTIC_RESULT_OUT_OF_MEMORY ||
+            allocation_count == 0u) ok = 0;
+        semantic_destroy(&baseline);
+    }
+    for (fail_at = 1u; ok && fail_at <= allocation_count; ++fail_at) {
         SemanticContext semantic;
         uint32_t attempts;
         semantic_init(&semantic, "allocation-snapshot-oom.nxf", NULL);
         semantic_test_fail_allocation_at(&semantic, fail_at);
         semantic_check(&semantic, (ASTNode*)parser->ast_root);
         attempts = semantic_test_get_allocation_attempts(&semantic);
-        if (attempts == fail_at &&
+        if (attempts < fail_at ||
             semantic.result_status != SEMANTIC_RESULT_OUT_OF_MEMORY) {
             fprintf(stderr,
-                "Allocation snapshot fault injection %u did not fail closed (status=%d, errors=%d).\\n",
-                fail_at, (int)semantic.result_status, semantic.error_count);
+                "Allocation snapshot fault injection %u/%u did not fail closed (attempts=%u, status=%d, errors=%d).\\n",
+                fail_at, allocation_count, attempts,
+                (int)semantic.result_status, semantic.error_count);
             ok = 0;
         }
         semantic_destroy(&semantic);
-        if (!ok) break;
     }
     parser_destroy(parser);
     return ok;
@@ -4498,28 +4509,39 @@ static int check_borrow_snapshot_oom_failures(void) {
         "borrow-snapshot-oom.nxf",
         (const uint8_t*)source, strlen(source));
     uint32_t fail_at;
+    uint32_t allocation_count;
     int ok = 1;
     if (!parser) return 0;
     if (parser_run(parser) != 0 || !parser->ast_root) {
         parser_destroy(parser);
         return 0;
     }
-    for (fail_at = 1u; fail_at <= 128u; ++fail_at) {
+    {
+        SemanticContext baseline;
+        semantic_init(&baseline, "borrow-snapshot-oom.nxf", NULL);
+        semantic_check(&baseline, (ASTNode*)parser->ast_root);
+        allocation_count =
+            semantic_test_get_allocation_attempts(&baseline);
+        if (baseline.result_status == SEMANTIC_RESULT_OUT_OF_MEMORY ||
+            allocation_count == 0u) ok = 0;
+        semantic_destroy(&baseline);
+    }
+    for (fail_at = 1u; ok && fail_at <= allocation_count; ++fail_at) {
         SemanticContext semantic;
         uint32_t attempts;
         semantic_init(&semantic, "borrow-snapshot-oom.nxf", NULL);
         semantic_test_fail_allocation_at(&semantic, fail_at);
         semantic_check(&semantic, (ASTNode*)parser->ast_root);
         attempts = semantic_test_get_allocation_attempts(&semantic);
-        if (attempts >= fail_at &&
+        if (attempts < fail_at ||
             semantic.result_status != SEMANTIC_RESULT_OUT_OF_MEMORY) {
             fprintf(stderr,
-                "Borrow snapshot fault injection %u did not fail closed (status=%d, errors=%d).\\n",
-                fail_at, (int)semantic.result_status, semantic.error_count);
+                "Borrow snapshot fault injection %u/%u did not fail closed (attempts=%u, status=%d, errors=%d).\\n",
+                fail_at, allocation_count, attempts,
+                (int)semantic.result_status, semantic.error_count);
             ok = 0;
         }
         semantic_destroy(&semantic);
-        if (!ok) break;
     }
     parser_destroy(parser);
     return ok;
@@ -4535,28 +4557,39 @@ static int check_returned_borrow_origin_oom_failures(void) {
         "returned-borrow-origin-oom.nxf",
         (const uint8_t*)source, strlen(source));
     uint32_t fail_at;
+    uint32_t allocation_count;
     int ok = 1;
     if (!parser) return 0;
     if (parser_run(parser) != 0 || !parser->ast_root) {
         parser_destroy(parser);
         return 0;
     }
-    for (fail_at = 1u; fail_at <= 96u; ++fail_at) {
+    {
+        SemanticContext baseline;
+        semantic_init(&baseline, "returned-borrow-origin-oom.nxf", NULL);
+        semantic_check(&baseline, (ASTNode*)parser->ast_root);
+        allocation_count =
+            semantic_test_get_allocation_attempts(&baseline);
+        if (baseline.result_status == SEMANTIC_RESULT_OUT_OF_MEMORY ||
+            allocation_count == 0u) ok = 0;
+        semantic_destroy(&baseline);
+    }
+    for (fail_at = 1u; ok && fail_at <= allocation_count; ++fail_at) {
         SemanticContext semantic;
         uint32_t attempts;
         semantic_init(&semantic, "returned-borrow-origin-oom.nxf", NULL);
         semantic_test_fail_allocation_at(&semantic, fail_at);
         semantic_check(&semantic, (ASTNode*)parser->ast_root);
         attempts = semantic_test_get_allocation_attempts(&semantic);
-        if (attempts >= fail_at &&
+        if (attempts < fail_at ||
             semantic.result_status != SEMANTIC_RESULT_OUT_OF_MEMORY) {
             fprintf(stderr,
-                "Returned borrow-origin fault injection %u did not fail closed (status=%d, errors=%d).\\n",
-                fail_at, (int)semantic.result_status, semantic.error_count);
+                "Returned borrow-origin fault injection %u/%u did not fail closed (attempts=%u, status=%d, errors=%d).\\n",
+                fail_at, allocation_count, attempts,
+                (int)semantic.result_status, semantic.error_count);
             ok = 0;
         }
         semantic_destroy(&semantic);
-        if (!ok) break;
     }
     parser_destroy(parser);
     return ok;
