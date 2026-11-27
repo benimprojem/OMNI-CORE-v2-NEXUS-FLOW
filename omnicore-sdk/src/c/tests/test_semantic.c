@@ -3108,11 +3108,15 @@ static int check_lambda_capture_lifetime_semantics(void) {
     const char* lambda_return_does_not_release_outer_allocation =
         "f:main() { v:a = area(64); v:callback = f:() { ret; }; "
         "echo(a); free(a); }";
+    const char* lambda_halt_does_not_poison_next_lambda =
+        "f:main() { v:first = f:() { ?; }; "
+        "v:second = f:() > missing_after_lambda_halt; }";
     return check_source(allocation_handle_capture, 1) &&
         check_source(safe_reference_capture, 1) &&
         check_source(scalar_capture_is_allowed, 0) &&
         check_source(lambda_parameter_shadows_outer_handle, 0) &&
-        check_source(lambda_return_does_not_release_outer_allocation, 0);
+        check_source(lambda_return_does_not_release_outer_allocation, 0) &&
+        check_source(lambda_halt_does_not_poison_next_lambda, 1);
 }
 
 static int check_extended_ast_semantics(void) {
