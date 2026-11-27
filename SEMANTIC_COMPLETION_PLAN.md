@@ -1068,3 +1068,11 @@ Added a monotonic context-local identity to reference-binding Slots and recorded
 - Regressions cover tuple, array-literal, and struct-literal returns containing a global allocation handle.
 - Exact implementation/test head: 3434f639557b8477b79164412963e3e4fb9f8ca6. Exact-head CI [5761](https://github.com/benimprojem/OMNI-CORE-v2-NEXUS-FLOW/actions/runs/46070039596) passed all five jobs: Ubuntu, Windows, macOS, ASan/UBSan, and Valgrind.
 - **Status:** aggregate return escape rejection is VERIFIED. SEM-005 remains IN_PROGRESS; broader expression and control-flow acceptance matrices remain open.
+
+
+### SEM-005 — aggregate Handler-capture boundary (2026-11-27)
+
+- Handler capture now rejects aggregate expressions that contain allocation-derived handles without one trackable identity, and aggregate expressions containing safe references whose borrow origins cannot be represented by the single Handler binding.
+- Regressions cover tuple captures containing an allocation handle and tuple captures containing a safe reference. Direct allocation-handle captures and direct safe-reference captures remain supported and retain their provenance.
+- Exact implementation/test head: fb90c3133a4c8504bc077769f6f28ce3c5c296a2. Exact-head CI [5763](https://github.com/benimprojem/OMNI-CORE-v2-NEXUS-FLOW/actions/runs/46070252457) passed all five jobs: Ubuntu, Windows, macOS, ASan/UBSan, and Valgrind.
+- **Status:** aggregate Handler-capture rejection is VERIFIED. SEM-005 remains IN_PROGRESS; the remaining expression-form and control-flow matrices remain open.
