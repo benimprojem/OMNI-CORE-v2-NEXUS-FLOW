@@ -7223,6 +7223,17 @@ static void semantic_validate_call_arguments(
                 report_error(ctx, argument, ERR_SEMANTIC_ARG_TYPE,
                     "A variadic argument cannot carry an allocation-derived handle/address because the variadic contract has no allocation-lifetime tracking.");
             }
+            if (expected_type &&
+                !semantic_type_is_any(ctx, expected_type) &&
+                !(function_slot->declaration_node &&
+                  function_slot->declaration_node->type == AST_EXTERN_DECL) &&
+                !(function_slot->is_variadic &&
+                  parameter_index >= (uint32_t)function_slot->param_count) &&
+                semantic_expression_contains_allocation_handle(
+                    ctx, argument_value)) {
+                report_error(ctx, argument, ERR_SEMANTIC_ARG_TYPE,
+                    "An allocation-derived handle/address cannot cross a typed function parameter until the callee has an explicit allocation-lifetime contract.");
+            }
             if (expected_type && semantic_type_is_any(ctx, expected_type) &&
                 (semantic_expression_contains_safe_reference(
                     ctx, argument_value, 0u) ||
