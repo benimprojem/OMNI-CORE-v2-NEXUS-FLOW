@@ -2081,8 +2081,20 @@ static int check_allocation_handle_return_escape_semantics(void) {
         "nt:RawI32 = *i32; v:global_area = area(64); "
         "f:get_pointer()!RawI32 { v:pointer!RawI32; "
         "ret pointer = cast(addr(global_area),RawI32); }";
+    const char* tuple_allocation_return_escape =
+        "v:global_area = area(64); "
+        "f:get_pair() { ret (global_area, 1); }";
+    const char* array_allocation_return_escape =
+        "v:global_area = area(64); "
+        "f:get_array() { ret [global_area]; }";
+    const char* struct_allocation_return_escape =
+        "struct:Box { v:value!any } v:global_area = area(64); "
+        "f:get_box() { ret Box { value = global_area }; }";
     return check_source(global_allocation_return_escape, 1) &&
-        check_source(assignment_expression_return_escape, 1);
+        check_source(assignment_expression_return_escape, 1) &&
+        check_source(tuple_allocation_return_escape, 1) &&
+        check_source(array_allocation_return_escape, 1) &&
+        check_source(struct_allocation_return_escape, 1);
 }
 
 static int check_allocation_handle_container_storage_rejection_semantics(void) {
