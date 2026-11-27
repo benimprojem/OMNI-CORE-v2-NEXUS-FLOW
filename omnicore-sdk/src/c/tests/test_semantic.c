@@ -2017,6 +2017,9 @@ static int check_allocation_handle_call_escape_rejection_semantics(void) {
     const char* any_parameter_call =
         "f:consume(value!any) {} "
         "f:main() { v:handle = area(16); consume(handle); free(handle); }";
+    const char* any_inline_allocation_expression =
+        "f:consume(value!any) {} "
+        "f:main() { consume(area(16)); }";
     const char* any_parameter_escape =
         "v:global!any; "
         "f:store(value!any) { global = value; } "
@@ -2036,6 +2039,7 @@ static int check_allocation_handle_call_escape_rejection_semantics(void) {
         "f:main() { v:handle = area(16); "
         "consume(cast(addr(handle),RawI32)); free(handle); }";
     return check_source(any_parameter_call, 1) &&
+        check_source(any_inline_allocation_expression, 1) &&
         check_source(any_parameter_escape, 1) &&
         check_source(extern_any_parameter, 1) &&
         check_source(typed_raw_pointer_parameter, 1) &&
