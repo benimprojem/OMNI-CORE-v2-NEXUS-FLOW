@@ -1086,3 +1086,13 @@ Added a monotonic context-local identity to reference-binding Slots and recorded
 - Regressions cover allocation-handle capture rejection, safe-reference capture rejection, allowed scalar capture, parameter shadowing, lambda ret preserving an outer allocation, and Halt in one lambda not suppressing diagnostics in a subsequent lambda.
 - Exact implementation/test head: 10850e67d423859d2c1f3abcd7b24aeba8b48732. Exact-head CI [5772](https://github.com/benimprojem/OMNI-CORE-v2-NEXUS-FLOW/actions/runs/46070978342) passed all five jobs: Ubuntu, Windows, macOS, ASan/UBSan, and Valgrind.
 - **Status:** lambda capture and execution-frame isolation is VERIFIED. SEM-005 remains IN_PROGRESS; remaining expression forms, interprocedural effects, borrow/lifetime joins, and the full diagnostic matrix remain open before OIR.
+
+
+### SEM-005 — infinite-loop exit alternatives (2026-11-27)
+
+- Infinite loops no longer merge their incoming state as a fictitious zero-iteration exit when every body path exits through break or a function/table terminal. The post-loop allocation/borrow state is restored from the actual body exit paths.
+- The exit classifier treats break as an exit from the current loop, return and table halts as function exits, and continue/fallthrough as loop back-edges. Conditional loops retain their zero-iteration alternative.
+- A structural regression inspects the cleanup function summary directly and requires exactly one allocation-effect alternative containing the outer global release for `loop { free(global_area); break; }`.
+- Test correction record: run [5774](https://github.com/benimprojem/OMNI-CORE-v2-NEXUS-FLOW/actions/runs/46071289742) correctly rejected the original test's expectation that freeing the same global again after cleanup would succeed. The test was changed to inspect the function summary rather than expect a legal double free.
+- Exact implementation/test head: 6054c81fc41eb18f19a4b63b9e4a6c5bf036d080. Exact-head CI [5776](https://github.com/benimprojem/OMNI-CORE-v2-NEXUS-FLOW/actions/runs/46071570091) passed all five jobs: Ubuntu, Windows, macOS, ASan/UBSan, and Valgrind.
+- **Status:** infinite-loop no-zero-iteration exit handling is VERIFIED for bodies whose paths all exit through break/return/halt. Continue/back-edge fixed-point and mixed break/continue state collection remain part of the broader loop control-flow matrix; SEM-005 remains IN_PROGRESS.
