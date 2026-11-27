@@ -11201,10 +11201,18 @@ static void semantic_check_node(
             ctx->current_func_return_type=NULL;
             ctx->lambda_capture_base_depth=(uint32_t)ctx->current_depth;
             ctx->lambda_depth=enclosing_lambda_depth+1u;
+            /* A lambda is an independent execution frame. Its ret must not
+               release allocations owned by the enclosing function. */
+            ++ctx->function_depth;
             enter_scope(ctx,node);
             semantic_check(ctx,lambda->params);
             semantic_check(ctx,lambda->body);
             exit_scope(ctx);
+            semantic_release_function_allocations(
+                ctx, (uint32_t)ctx->function_depth);
+            if (ctx->halted_function_depth == (uint32_t)ctx->function_depth)
+                ctx->halted_function_depth = UINT32_MAX;
+            --ctx->function_depth;
             ctx->lambda_depth=enclosing_lambda_depth;
             ctx->lambda_capture_base_depth=enclosing_capture_base_depth;
             ctx->current_func_return_type=enclosing_return_type;
