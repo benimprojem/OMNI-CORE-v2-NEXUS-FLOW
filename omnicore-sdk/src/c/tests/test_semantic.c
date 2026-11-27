@@ -2042,6 +2042,15 @@ static int check_allocation_handle_call_escape_rejection_semantics(void) {
         check_source(typed_raw_pointer_parameter_escape, 1);
 }
 
+static int check_allocation_handle_return_escape_semantics(void) {
+    const char* global_allocation_return_escape =
+        "nt:RawI32 = *i32; v:global_area = area(64); "
+        "f:get_pointer()!RawI32 { ret cast(addr(global_area),RawI32); } "
+        "f:main() { v:pointer!RawI32 = get_pointer(); "
+        "free(global_area); echo(pointer); }";
+    return check_source(global_allocation_return_escape, 1);
+}
+
 static int check_allocation_handle_container_storage_rejection_semantics(void) {
     const char* fixed_array_any_handle_assignment =
         "f:main() { v:items[2]!any; items[0] = area(16); }";
@@ -5247,6 +5256,10 @@ int main(int argc, char** argv) {
     }
     if (!check_allocation_handle_call_escape_rejection_semantics()) {
         fprintf(stderr, "Allocation-handle call escape checks failed.\\n");
+        return 1;
+    }
+    if (!check_allocation_handle_return_escape_semantics()) {
+        fprintf(stderr, "Allocation-handle return escape checks failed.\\n");
         return 1;
     }
     if (!check_allocation_handle_container_storage_rejection_semantics()) {
