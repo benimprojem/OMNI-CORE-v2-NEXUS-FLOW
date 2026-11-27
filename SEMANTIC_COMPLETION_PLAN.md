@@ -1047,3 +1047,14 @@ Added a monotonic context-local identity to reference-binding Slots and recorded
 - Regression coverage includes conditional-loop return after release, continue after release, conditional break, nested-loop break, and outer-allocation release propagation.
 - Exact implementation head: 182fea800516503526fcbd0da8c3baefc99230ba. Exact-head CI [5744](https://github.com/benimprojem/OMNI-CORE-v2-NEXUS-FLOW/actions/runs/46055936689) passed all five jobs: Ubuntu, Windows, macOS, ASan/UBSan, and Valgrind.
 - **Status:** this loop terminal-path/allocation-join slice is VERIFIED. SEM-005 remains IN_PROGRESS; the remaining pointer-expression combinations, parameter/return contracts, borrow/lifetime joins, and complete diagnostic matrix must be closed before OIR is enabled.
+
+
+### SEM-005 — assignment-expression and Handler-capture provenance (2026-11-27)
+
+- Allocation identity and base-handle status now propagate through AST_ASSIGNMENT expressions using the assigned RHS value. This closes call-argument and return-expression escape gaps where an allocation-derived pointer was wrapped in an assignment expression before crossing an uncontracted boundary.
+- Nexus Handler capture now preserves the captured allocation identity and base status. Captured bindings are marked initialized immediately after their source expression has been evaluated, so subsequent reads use the same definite-initialization rules as ordinary initialized bindings.
+- Safe-reference Handler captures now use the ordinary borrow-binding registration path. Their borrow origins, owner borrow counts, and lifetime restrictions are therefore preserved; a captured shared reference can be dereferenced, but it blocks mutation of its owner while live.
+- Regressions cover typed call and return assignment expressions, releasing a captured allocation, stale aliases after release, reading a captured safe reference, and rejecting mutation of a borrowed owner.
+- Failure/retest record: run [5755](https://github.com/benimprojem/OMNI-CORE-v2-NEXUS-FLOW/actions/runs/46069211273) exposed that captured reference bindings were not marked initialized; this was fixed before accepting the slice.
+- Exact implementation/test head: d8290b3462316e95a2435149cadc8b53f75afcdb. Exact-head CI [5756](https://github.com/benimprojem/OMNI-CORE-v2-NEXUS-FLOW/actions/runs/46069350890) passed all five jobs: Ubuntu, Windows, macOS, ASan/UBSan, and Valgrind. Valgrind reported 0 errors and 0 definitely/indirectly/possibly lost bytes; 1,534 bytes remained reachable at process exit.
+- **Status:** assignment-expression and Handler-capture provenance is VERIFIED. SEM-005 remains IN_PROGRESS; the remaining expression-form, interprocedural effect, borrow/lifetime join, and diagnostic acceptance matrices remain gated before OIR.
