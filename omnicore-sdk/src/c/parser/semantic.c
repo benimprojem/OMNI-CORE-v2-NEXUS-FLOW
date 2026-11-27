@@ -2776,9 +2776,10 @@ static int semantic_branch_terminates_flow(const ASTNode* branch) {
     /* Return and table halts end the enclosing function path. break and
        continue end only the current loop iteration; their allocation state
        must still participate in the loop's post-state merge. */
-    /* }?; closes only this block's flow; it is not a function-path
-       terminator and its allocation/borrow state must join the sibling arm. */
+    /* }?; is an explicit table halt: once its block closes, the current
+       function path ends just like a direct table halt or return. */
     if (branch->type == AST_RETURN ||
+        branch->type == AST_BLOCK_HALT ||
         branch->type == AST_NEXUS_HALT) return 1;
     if (branch->type == AST_IF) {
         const ASTIf* conditional = (const ASTIf*)branch;
