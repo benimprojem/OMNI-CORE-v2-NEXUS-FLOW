@@ -1076,3 +1076,13 @@ Added a monotonic context-local identity to reference-binding Slots and recorded
 - Regressions cover tuple captures containing an allocation handle and tuple captures containing a safe reference. Direct allocation-handle captures and direct safe-reference captures remain supported and retain their provenance.
 - Exact implementation/test head: fb90c3133a4c8504bc077769f6f28ce3c5c296a2. Exact-head CI [5763](https://github.com/benimprojem/OMNI-CORE-v2-NEXUS-FLOW/actions/runs/46070252457) passed all five jobs: Ubuntu, Windows, macOS, ASan/UBSan, and Valgrind.
 - **Status:** aggregate Handler-capture rejection is VERIFIED. SEM-005 remains IN_PROGRESS; the remaining expression-form and control-flow matrices remain open.
+
+
+### SEM-005 — lambda closure capture and execution-frame isolation (2026-11-27)
+
+- Lambda analysis now tracks the lexical depth at which each closure is created. A lambda cannot implicitly capture an outer allocation-derived handle or safe reference because the closure environment has no explicit lifetime/ownership contract. Ordinary scalar captures and lambda parameters that shadow an outer name remain valid.
+- Lambda bodies now execute in an independent Semantic function frame. A lambda ret releases only allocations owned by that lambda frame and cannot invalidate allocations owned by the enclosing function. Lambda-local Halt state is restored before analysis resumes in the enclosing function or a subsequent lambda.
+- The two lambda-state fields were appended to SemanticContext rather than inserted among existing fields, preserving offsets of the established struct members.
+- Regressions cover allocation-handle capture rejection, safe-reference capture rejection, allowed scalar capture, parameter shadowing, lambda ret preserving an outer allocation, and Halt in one lambda not suppressing diagnostics in a subsequent lambda.
+- Exact implementation/test head: 10850e67d423859d2c1f3abcd7b24aeba8b48732. Exact-head CI [5772](https://github.com/benimprojem/OMNI-CORE-v2-NEXUS-FLOW/actions/runs/46070978342) passed all five jobs: Ubuntu, Windows, macOS, ASan/UBSan, and Valgrind.
+- **Status:** lambda capture and execution-frame isolation is VERIFIED. SEM-005 remains IN_PROGRESS; remaining expression forms, interprocedural effects, borrow/lifetime joins, and the full diagnostic matrix remain open before OIR.
