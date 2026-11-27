@@ -11773,6 +11773,10 @@ static void semantic_check_node(
                         "Allocate in a longer-lived owner and pass a verified reference, or transfer ownership through an explicit supported ownership contract.",
                         "Allocate in a longer-lived owner and pass a verified reference, or transfer ownership through an explicit supported ownership contract.",
                         0, 0);
+                } else if (returned_allocation) {
+                    report_error(ctx, ret->operand,
+                        ERR_SEMANTIC_RETURN_MISMATCH,
+                        "Returning an allocation-derived handle/address is unsupported until the call result can preserve its allocation identity and lifetime contract.");
                 }
                 const char* returned_type = get_expr_type(ctx, ret->operand);
                 if (semantic_type_is_any(ctx, ctx->current_func_return_type) &&
