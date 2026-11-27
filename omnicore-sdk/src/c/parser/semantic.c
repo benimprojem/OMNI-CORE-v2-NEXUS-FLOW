@@ -10717,6 +10717,17 @@ static void semantic_check_node(
                 report_error(ctx, node, ERR_SEMANTIC_REDEFINED, buf);
                 break;
             }
+            if ((semantic_expression_contains_allocation_handle(
+                     ctx, capture->expr) &&
+                 semantic_expression_allocation_identity(
+                     ctx, capture->expr) == 0u) ||
+                (semantic_expression_contains_safe_reference(
+                     ctx, capture->expr, 0u) &&
+                 !semantic_is_reference_type_name(captured_type))) {
+                report_error(ctx, capture->expr, ERR_SEMANTIC_TYPE_MISMATCH,
+                    "A Handler cannot capture an aggregate containing allocation-derived handles or safe references because the contained identities and lifetimes cannot be tracked independently.");
+                break;
+            }
 
             handler_slot = add_slot(
                 ctx, capture->handler_name, SLOT_VAR, 0, captured_type,
