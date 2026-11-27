@@ -2037,6 +2037,63 @@ static int check_correlated_function_allocation_alternatives(void) {
     return ok;
 }
 
+static int check_infinite_loop_break_allocation_effect(void) {
+    const char* source =
+        "v:global_area = area(64); "
+        "f:cleanup() { loop { free(global_area); break; } }";
+    ParserContext* parser = parser_init_source(
+        "semantic-infinite-loop-break-effect.nxf",
+        (const uint8_t*)source, strlen(source));
+    SemanticContext semantic;
+    Slot* global_area = NULL;
+    Slot* cleanup = NULL;
+    SemanticFunctionAllocationAlternative* alternative;
+    size_t alternative_count = 0u;
+    int ok = 1;
+    if (!parser) return 0;
+    if (parser_run(parser) != 0 || !parser->ast_root) {
+        parser_destroy(parser);
+        return 0;
+    }
+    semantic_init(&semantic, "semantic-infinite-loop-break-effect.nxf", NULL);
+    semantic_check(&semantic, (ASTNode*)parser->ast_root);
+    if (semantic.error_count != 0) ok = 0;
+    for (Slot* slot = semantic.head; slot; slot = slot->next) {
+        if (slot->name && strcmp(slot->name, "global_area") == 0)
+            global_area = slot;
+        else if (slot->name && strcmp(slot->name, "cleanup") == 0)
+            cleanup = slot;
+    }
+    if (!global_area || !cleanup || global_area->semantic_identity == 0u ||
+        !cleanup->allocation_alternatives) {
+        ok = 0;
+    } else {
+        for (alternative = cleanup->allocation_alternatives;
+             alternative; alternative = alternative->next) {
+            SemanticFunctionAllocationEffect* effect;
+            size_t effect_count = 0u;
+            int released_global = 0;
+            ++alternative_count;
+            for (effect = alternative->effects; effect; effect = effect->next) {
+                ++effect_count;
+                if (effect->target_slot_identity ==
+                    global_area->semantic_identity) released_global = 1;
+            }
+            if (effect_count != 1u || !released_global) ok = 0;
+        }
+    }
+    if (alternative_count != 1u) ok = 0;
+    if (!ok) {
+        fprintf(stderr,
+            "Infinite-loop break allocation effect was not unconditional "
+            "(errors=%d, alternatives=%llu).\\n",
+            semantic.error_count, (unsigned long long)alternative_count);
+    }
+    semantic_destroy(&semantic);
+    parser_destroy(parser);
+    return ok;
+}
+
 static int check_allocation_handle_call_escape_rejection_semantics(void) {
     const char* any_parameter_call =
         "f:consume(value!any) {} "
@@ -5403,10 +5460,6 @@ static int check_intrinsic_semantics(void) {
         "f:maybe_cleanup(cond!bool) { if (cond) { free(global_area); } } "
         "f:wrapper(cond!bool) { maybe_cleanup(cond); } "
         "f:main() { wrapper(true); free(global_area); }";
-    const char* allocation_infinite_loop_break_release_is_unconditional =
-        "v:global_area = area(64); "
-        "f:cleanup() { loop { free(global_area); break; } } "
-        "f:main() { cleanup(); free(global_area); }";
     const char* function_analysis_does_not_commit_global_relocation =
         "v:global_a = area(64); v:global_b = area(32); free(global_b); "
         "f:move() { v:moved = global_a _> global_b; } "
@@ -5500,7 +5553,6 @@ static int check_intrinsic_semantics(void) {
         check_source(conditional_function_free_is_not_unconditional, -1) &&
         check_source(function_free_on_every_exit_is_unconditional, 1) &&
         check_source(nested_conditional_function_free_stays_conditional, -1) &&
-        check_source(allocation_infinite_loop_break_release_is_unconditional, 0) &&
         check_source(function_analysis_does_not_commit_global_relocation, 0) &&
         check_source(local_allocation_cannot_escape_to_outer_binding, 1) &&
         check_source(function_local_allocation_cannot_escape_to_global, 1) &&
@@ -5852,6 +5904,10 @@ int main(int argc, char** argv) {
     }
     if (!check_correlated_function_allocation_alternatives()) {
         fprintf(stderr, "Correlated function allocation alternative checks failed.\\n");
+        return 1;
+    }
+    if (!check_infinite_loop_break_allocation_effect()) {
+        fprintf(stderr, "Infinite-loop break allocation effect checks failed.\\n");
         return 1;
     }
     if (!check_allocation_handle_call_escape_rejection_semantics()) {
