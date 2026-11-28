@@ -5420,6 +5420,14 @@ static int check_intrinsic_semantics(void) {
         "f:main(cond!bool) { v:a = area(64); v:alias = a; "
         "loop (cond) { loop (true) { free(a); break; } break; } "
         "echo(alias); }";
+    const char* allocation_inner_break_does_not_exit_outer_loop =
+        "f:main() { v:a = area(64); loop (true) { "
+        "loop (true) { break; } break; free(a); } free(a); }";
+    const char* allocation_conditional_break_continue_paths =
+        "f:main(loop_cond!bool, release_cond!bool) { "
+        "v:a = area(64); v:alias = a; loop (loop_cond) { "
+        "if (release_cond) { free(a); break; } "
+        "els { free(a); continue; } } echo(alias); }";
     const char* allocation_relocate_to_outer_scope =
         "f:main() { v:outer = area(32); free(outer); "
         "{ v:inner = area(64); v:moved = inner _> outer; echo(outer); } "
@@ -5546,6 +5554,8 @@ static int check_intrinsic_semantics(void) {
         check_source(allocation_loop_continue_may_release_alias, -1) &&
         check_source(allocation_conditional_break_may_release_alias, -1) &&
         check_source(allocation_nested_loop_may_release_alias, -1) &&
+        check_source(allocation_inner_break_does_not_exit_outer_loop, 0) &&
+        check_source(allocation_conditional_break_continue_paths, -1) &&
         check_source(allocation_relocate_to_outer_scope, 0) &&
         check_source(allocation_relocate_into_owned_destination_rejected, 1) &&
         check_source(allocation_relocate_across_function_frame_rejected, 1) &&
