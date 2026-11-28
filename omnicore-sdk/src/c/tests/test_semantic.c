@@ -5188,40 +5188,70 @@ static int check_allocation_release_diagnostic_matrix(void) {
     static const struct {
         const char* source;
         const char* expected_message;
-        unsigned int free_occurrence;
+        const char* location_token;
+        unsigned int location_occurrence;
+        unsigned int location_column_offset;
     } cases[] = {
         {
             "f:main() { v:a = area(64); v:p = addr(a); "
             "v:q = p + 4; free(q); free(a); }",
-            "base handle/address",
-            0u
+            "base handle/address", "free(", 0u, 6u
         },
         {
             "f:main() { free(4096); }",
-            "active allocation identity",
-            0u
+            "active allocation identity", "free(", 0u, 6u
         },
         {
             "f:main() { v:a = area(64); free(a); free(a); }",
-            "Allocation handle 'a' is no longer valid",
-            1u
+            "Allocation handle 'a' is no longer valid", "free(", 1u, 6u
+        },
+        {
+            "nt:RawI32 = *i32; f:main() { v:a = area(64); v:b = area(64); "
+            "v:p!RawI32 = cast(addr(a),RawI32); "
+            "v:q!RawI32 = cast(addr(b),RawI32); "
+            "v:distance = p - q; free(a); free(b); }",
+            "Pointer subtraction combines different allocation identities",
+            "p - q", 0u, 1u
+        },
+        {
+            "f:main() { v:a = area(64); v:p = addr(a); "
+            "v:q = 4 - p; free(a); }",
+            "Integer-minus-pointer arithmetic is not a valid allocation-preserving operation",
+            "4 - p", 0u, 1u
+        },
+        {
+            "nt:RawI32 = *i32; struct:Box { v:pointer!RawI32 } "
+            "f:main() { v:a = area(64); v:box!Box; "
+            "box.pointer = cast(addr(a),RawI32); }",
+            "Allocation-derived handles/addresses cannot be stored through member",
+            "cast(addr(a),RawI32)", 0u, 1u
+        },
+        {
+            "nt:RawI32 = *i32; "
+            "f:main() { v:a = area(64); v:items[1]!RawI32; "
+            "items[0] = cast(addr(a),RawI32); }",
+            "Allocation-derived handles/addresses cannot be stored through member",
+            "cast(addr(a),RawI32)", 0u, 1u
         }
     };
     size_t index;
     for (index = 0u; index < sizeof(cases) / sizeof(cases[0]); ++index) {
         const char* source = cases[index].source;
-        const char* free_node = strstr(source, "free(");
+        const char* location_node = strstr(source, cases[index].location_token);
         ParserContext* parser;
         SemanticContext semantic;
         Error* error;
         int expected_column;
         unsigned int occurrence;
         for (occurrence = 0u;
-             free_node && occurrence < cases[index].free_occurrence;
+             location_node && occurrence < cases[index].location_occurrence;
              ++occurrence)
-            free_node = strstr(free_node + 5, "free(");
-        if (!free_node) return 0;
-        expected_column = (int)(free_node - source) + 6;
+            location_node = strstr(
+                location_node + strlen(cases[index].location_token),
+                cases[index].location_token);
+        if (!location_node) return 0;
+        expected_column = (int)(location_node - source) +
+            (int)cases[index].location_column_offset;
         parser = parser_init_source(
             "allocation-release-diagnostics.nxf",
             (const uint8_t*)source, strlen(source));
