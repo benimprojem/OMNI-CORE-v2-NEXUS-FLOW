@@ -5333,12 +5333,12 @@ static int check_intrinsic_semantics(void) {
         "nt:RawI32 = *i32; f:main() { "
         "v:a = area(64); v:b = area(64); "
         "v:p!RawI32 = cast(addr(a),RawI32); "
-        "v:q!RawI32 = cast(addr(b),RawI32); v:r = p + q; }";
+        "v:q!RawI32 = cast(addr(b),RawI32); v:r = p + q; free(a); free(b); }";
     const char* allocation_pointer_subtraction_mixed_identities_rejected =
         "nt:RawI32 = *i32; f:main() { "
         "v:a = area(64); v:b = area(64); "
         "v:p!RawI32 = cast(addr(a),RawI32); "
-        "v:q!RawI32 = cast(addr(b),RawI32); v:distance = p - q; }";
+        "v:q!RawI32 = cast(addr(b),RawI32); v:distance = p - q; free(a); free(b); }";
     const char* allocation_integer_plus_pointer_alias_use_after_free =
         "f:main() { v:a = area(64); v:p = addr(a); v:q = 4 + p; "
         "free(a); echo(q); }";
@@ -5346,7 +5346,7 @@ static int check_intrinsic_semantics(void) {
         "f:main() { v:a = area(64); v:p = addr(a); v:q = p - 4; "
         "free(a); echo(q); }";
     const char* allocation_integer_minus_pointer_rejected =
-        "f:main() { v:a = area(64); v:p = addr(a); v:q = 4 - p; }";
+        "f:main() { v:a = area(64); v:p = addr(a); v:q = 4 - p; free(a); }";
     const char* allocation_address_unsupported_transform_rejected =
         "f:main() { v:a = area(64); v:p = addr(a); v:q = p * 1; "
         "free(a); echo(q); }";
