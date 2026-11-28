@@ -5478,6 +5478,14 @@ static int check_intrinsic_semantics(void) {
         "f:main(loop_cond!bool, release_cond!bool) { "
         "loop (loop_cond) { maybe_free(release_cond); continue; } "
         "echo(global_area); }";
+    const char* allocation_function_return_release_before_nested_loop_continue =
+        "v:global_area = area(64); "
+        "f:maybe_free(cond!bool) { "
+        "if (cond) { free(global_area); ret; } } "
+        "f:main(outer_cond!bool, inner_cond!bool, release_cond!bool) { "
+        "loop (outer_cond) { "
+        "loop (inner_cond) { maybe_free(release_cond); continue; } "
+        "break; } echo(global_area); }";
     const char* allocation_inner_break_does_not_exit_outer_loop =
         "f:main() { v:a = area(64); loop (true) { "
         "loop (true) { break; } break; free(a); } free(a); }";
@@ -5648,6 +5656,7 @@ static int check_intrinsic_semantics(void) {
         check_source(allocation_function_effect_rejected_on_released_caller_path, -1) &&
         check_source(allocation_function_return_release_before_loop_break, -1) &&
         check_source(allocation_function_return_release_before_loop_continue, -1) &&
+        check_source(allocation_function_return_release_before_nested_loop_continue, -1) &&
         check_source(allocation_inner_break_does_not_exit_outer_loop, 0) &&
         check_source(allocation_conditional_break_continue_paths, -1) &&
         check_source(allocation_relocate_to_outer_scope, 0) &&
