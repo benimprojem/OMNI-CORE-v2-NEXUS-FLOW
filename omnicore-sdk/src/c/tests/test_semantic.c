@@ -5206,9 +5206,8 @@ static int check_allocation_release_diagnostic_matrix(void) {
             "Allocation handle 'a' is no longer valid", "free(", 1u, 6u
         },
         {
-            "nt:RawI32 = *i32; f:main() { v:a = area(64); v:b = area(64); "
-            "v:p!RawI32 = cast(addr(a),RawI32); "
-            "v:q!RawI32 = cast(addr(b),RawI32); "
+            "f:main() { v:a = area(64); v:b = area(64); "
+            "v:p = addr(a); v:q = addr(b); "
             "v:distance = p - q; free(a); free(b); }",
             "Pointer subtraction combines different allocation identities",
             "p - q", 0u, 1u
@@ -5360,15 +5359,11 @@ static int check_intrinsic_semantics(void) {
         "f:main() { v:a = area(64); v:p = addr(a); v:q = p + 4; "
         "v:distance = q - p; free(a); echo(distance); }";
     const char* allocation_pointer_addition_mixed_identities_rejected =
-        "nt:RawI32 = *i32; f:main() { "
-        "v:a = area(64); v:b = area(64); "
-        "v:p!RawI32 = cast(addr(a),RawI32); "
-        "v:q!RawI32 = cast(addr(b),RawI32); v:r = p + q; free(a); free(b); }";
+        "f:main() { v:a = area(64); v:b = area(64); "
+        "v:p = addr(a); v:q = addr(b); v:r = p + q; free(a); free(b); }";
     const char* allocation_pointer_subtraction_mixed_identities_rejected =
-        "nt:RawI32 = *i32; f:main() { "
-        "v:a = area(64); v:b = area(64); "
-        "v:p!RawI32 = cast(addr(a),RawI32); "
-        "v:q!RawI32 = cast(addr(b),RawI32); v:distance = p - q; free(a); free(b); }";
+        "f:main() { v:a = area(64); v:b = area(64); "
+        "v:p = addr(a); v:q = addr(b); v:distance = p - q; free(a); free(b); }";
     const char* allocation_integer_plus_pointer_alias_use_after_free =
         "f:main() { v:a = area(64); v:p = addr(a); v:q = 4 + p; "
         "free(a); echo(q); }";
