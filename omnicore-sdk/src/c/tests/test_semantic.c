@@ -5329,6 +5329,16 @@ static int check_intrinsic_semantics(void) {
     const char* allocation_pointer_difference_is_plain_value =
         "f:main() { v:a = area(64); v:p = addr(a); v:q = p + 4; "
         "v:distance = q - p; free(a); echo(distance); }";
+    const char* allocation_pointer_addition_mixed_identities_rejected =
+        "nt:RawI32 = *i32; f:main() { "
+        "v:a = area(64); v:b = area(64); "
+        "v:p!RawI32 = cast(addr(a),RawI32); "
+        "v:q!RawI32 = cast(addr(b),RawI32); v:r = p + q; }";
+    const char* allocation_pointer_subtraction_mixed_identities_rejected =
+        "nt:RawI32 = *i32; f:main() { "
+        "v:a = area(64); v:b = area(64); "
+        "v:p!RawI32 = cast(addr(a),RawI32); "
+        "v:q!RawI32 = cast(addr(b),RawI32); v:distance = p - q; }";
     const char* allocation_address_unsupported_transform_rejected =
         "f:main() { v:a = area(64); v:p = addr(a); v:q = p * 1; "
         "free(a); echo(q); }";
@@ -5594,6 +5604,8 @@ static int check_intrinsic_semantics(void) {
         check_source(allocation_reassignment_restores_base_alias, 0) &&
         check_source(allocation_interior_address_cannot_be_freed, 1) &&
         check_source(allocation_pointer_difference_is_plain_value, 0) &&
+        check_source(allocation_pointer_addition_mixed_identities_rejected, -1) &&
+        check_source(allocation_pointer_subtraction_mixed_identities_rejected, -1) &&
         check_source(allocation_address_unsupported_transform_rejected, 1) &&
         check_source(allocation_pointer_cast_alias_use_after_free, 1) &&
         check_source(allocation_pointer_cast_base_handle_release, 0) &&
