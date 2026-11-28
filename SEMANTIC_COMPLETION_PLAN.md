@@ -148,6 +148,15 @@ The order below is a dependency order. Audit results may mark an item already im
 - Exact-head CI has now passed for the allocation identity/relocation, correlated function-free alternatives, typed call/return escape rejection, pointer alias reassignment, and exhaustive snapshot/function-effect OOM fault-injection checkpoints. The verified runs include Linux, Windows, macOS, ASan/UBSan and Valgrind.
 - Remaining SEM-005 verification: pointer arithmetic and aggregate/index/member expression combinations beyond the focused direct/cast/offset/reassignment cases; nested loop control paths involving `break`/`continue`/`ret`/Halt; explicit typed-parameter and caller-visible return-origin/effect contracts (current behavior is conservative rejection where identity cannot be preserved); and the complete diagnostic cardinality/location matrix for release paths. Snapshot restore and branch-merge OOM rollback now have exhaustive allocation/borrow graph state assertions. Keep SEM-005 IN_PROGRESS until the remaining gates and exact-head CI pass.
 
+### SEM-005 — Function allocation-effect exit alternatives (2026-11-28)
+
+- Function allocation summaries now preserve each explicit `ret` path as an independent allocation-state alternative and include normal fallthrough only when that path remains reachable.
+- A first recorded return clones the current path set instead of treating a missing accumulator as an additional empty path. A function with no explicit return uses its actual fallthrough state directly; this prevents fabricated no-release alternatives.
+- Nested calls propagate correlated callee alternatives into the caller's path set. Lambda and Group-method execution frames isolate their return control state from the enclosing function.
+- Regression coverage: conditional `free()+ret` versus live fallthrough, unreachable `free()` after `ret`, and transitive conditional release through a wrapper function.
+- Exact-head CI for commit `0168cc33e9f158b47c6a8609a645471afd1acea9`, run [46113634061](https://github.com/benimprojem/OMNI-CORE-v2-NEXUS-FLOW/actions/runs/46113634061), passed all five jobs: Linux, Windows, macOS, ASan/UBSan and Valgrind. Linux CTest passed 74/74.
+- This closes the explicit-return allocation-summary regression set only; SEM-005 remains IN_PROGRESS pending the other verification items above.
+
 - Inspect: safe `&T` / `&mut T`, raw `*T`, borrow exclusivity, projection overlap, lifetime origins, initialization, nullability, escape and callback return provenance.
 - Positive tests: independent struct fields/constant indexes, valid shared/exclusive borrow, initialized reference use, valid parameter-origin propagation.
 - Negative tests: conflicting borrow, use-before-init, use-after-scope, longer-lived escape, unknown provenance, unsupported safe-reference storage and invalid raw-to-safe conversion.
