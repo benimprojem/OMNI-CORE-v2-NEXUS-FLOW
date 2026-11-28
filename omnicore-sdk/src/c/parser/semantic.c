@@ -13763,12 +13763,17 @@ static void semantic_check_node(
             uint8_t previous_method_context = ctx->current_method_context;
             uint8_t previous_method_is_object = ctx->current_method_is_object;
             uint8_t previous_control_flow_terminated = ctx->control_flow_terminated;
+            SemanticFunctionExitFrame* previous_function_exit =
+                ctx->active_function_exit;
             SemanticReferenceInitSnapshot method_entry_state = {0};
             int method_entry_state_captured = 0;
             Slot* receiver_slot = NULL;
 
             ctx->current_method_context = 1u;
             ctx->control_flow_terminated = 0u;
+            /* Method analysis is an independent declaration frame; a block
+               handler's ret must not become an exit of the enclosing body. */
+            ctx->active_function_exit = NULL;
             ctx->current_method_public_name = m->public_name;
             ctx->current_method_is_object = 0u;
             ctx->current_method_receiver_type = NULL;
@@ -13822,6 +13827,7 @@ static void semantic_check_node(
             ctx->current_method_public_name = previous_method_public_name;
             ctx->current_method_is_object = previous_method_is_object;
             ctx->control_flow_terminated = previous_control_flow_terminated;
+            ctx->active_function_exit = previous_function_exit;
             break;
         }
 
