@@ -5341,6 +5341,16 @@ static int check_intrinsic_semantics(void) {
     const char* allocation_pointer_cast_interior_release_rejected =
         "nt:RawI32 = *i32; f:main() { v:a = area(64); "
         "v:p!RawI32 = cast(addr(a) + 4,RawI32); free(p); free(a); }";
+    const char* allocation_indexed_pointer_alias_use_after_free =
+        "nt:RawI32 = *i32; nt:RawPtrPtr = *RawI32; "
+        "f:main() { v:a = area(64); "
+        "v:p!RawPtrPtr = cast(addr(a),RawPtrPtr); "
+        "free(a); echo(p[0]); }";
+    const char* allocation_indexed_pointer_cannot_be_freed =
+        "nt:RawI32 = *i32; nt:RawPtrPtr = *RawI32; "
+        "f:main() { v:a = area(64); "
+        "v:p!RawPtrPtr = cast(addr(a),RawPtrPtr); "
+        "free(p[0]); free(a); }";
     const char* allocation_scope_exit_without_release_rejected =
         "f:main() { v:a = area(64); }";
     const char* allocation_nested_scope_exit_without_release_rejected =
@@ -5582,6 +5592,8 @@ static int check_intrinsic_semantics(void) {
         check_source(allocation_pointer_cast_alias_use_after_free, 1) &&
         check_source(allocation_pointer_cast_base_handle_release, 0) &&
         check_source(allocation_pointer_cast_interior_release_rejected, 1) &&
+        check_source(allocation_indexed_pointer_alias_use_after_free, 1) &&
+        check_source(allocation_indexed_pointer_cannot_be_freed, 1) &&
         check_source(allocation_scope_exit_without_release_rejected, 1) &&
         check_source(allocation_nested_scope_exit_without_release_rejected, 1) &&
         check_source(allocation_scope_halt_releases_current_scope, 0) &&
