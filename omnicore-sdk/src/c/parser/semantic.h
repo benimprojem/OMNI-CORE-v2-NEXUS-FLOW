@@ -136,6 +136,8 @@ typedef struct ThreadBlockEntry {
     struct ThreadBlockEntry* next;
 } ThreadBlockEntry;
 
+typedef struct SemanticLoopControlFrame SemanticLoopControlFrame;
+
 typedef struct {
     Slot* head;
     const char* filename;
@@ -202,6 +204,8 @@ typedef struct {
     /* Appended to preserve offsets of the existing SemanticContext ABI fields. */
     uint32_t lambda_depth;
     uint32_t lambda_capture_base_depth;
+    SemanticLoopControlFrame* active_loop;
+    uint8_t control_flow_terminated;
 } SemanticContext;
 
 OCC_API void semantic_init(SemanticContext* ctx, const char* filename, const char* lang_file_path);
