@@ -5341,11 +5341,14 @@ static int check_intrinsic_semantics(void) {
     const char* allocation_pointer_cast_interior_release_rejected =
         "nt:RawI32 = *i32; f:main() { v:a = area(64); "
         "v:p!RawI32 = cast(addr(a) + 4,RawI32); free(p); free(a); }";
-    const char* allocation_indexed_address_alias_use_after_free =
-        "f:main() { v:a = area(64); v:p = addr(a[0]); "
-        "free(a); echo(p); }";
-    const char* allocation_indexed_address_cannot_be_freed =
-        "f:main() { v:a = area(64); free(addr(a[0])); free(a); }";
+    const char* allocation_derived_pointer_cannot_be_stored_in_member =
+        "nt:RawI32 = *i32; struct:Box { v:pointer!RawI32 } "
+        "f:main() { v:a = area(64); v:box!Box; "
+        "box.pointer = cast(addr(a),RawI32); }";
+    const char* allocation_derived_pointer_cannot_be_stored_in_index =
+        "nt:RawI32 = *i32; "
+        "f:main() { v:a = area(64); v:items[1]!RawI32; "
+        "items[0] = cast(addr(a),RawI32); }";
     const char* allocation_scope_exit_without_release_rejected =
         "f:main() { v:a = area(64); }";
     const char* allocation_nested_scope_exit_without_release_rejected =
@@ -5587,8 +5590,8 @@ static int check_intrinsic_semantics(void) {
         check_source(allocation_pointer_cast_alias_use_after_free, 1) &&
         check_source(allocation_pointer_cast_base_handle_release, 0) &&
         check_source(allocation_pointer_cast_interior_release_rejected, 1) &&
-        check_source(allocation_indexed_address_alias_use_after_free, 1) &&
-        check_source(allocation_indexed_address_cannot_be_freed, 1) &&
+        check_source(allocation_derived_pointer_cannot_be_stored_in_member, -1) &&
+        check_source(allocation_derived_pointer_cannot_be_stored_in_index, -1) &&
         check_source(allocation_scope_exit_without_release_rejected, 1) &&
         check_source(allocation_nested_scope_exit_without_release_rejected, 1) &&
         check_source(allocation_scope_halt_releases_current_scope, 0) &&
