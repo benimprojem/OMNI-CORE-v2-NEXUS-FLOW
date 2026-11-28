@@ -5473,6 +5473,15 @@ static int check_intrinsic_semantics(void) {
         "f:maybe_cleanup(cond!bool) { if (cond) { free(global_area); } } "
         "f:wrapper(cond!bool) { maybe_cleanup(cond); } "
         "f:main() { wrapper(true); free(global_area); }";
+    const char* conditional_function_free_on_return_stays_conditional =
+        "v:global_area = area(64); "
+        "f:maybe_cleanup(cond!bool) { "
+        "if (cond) { free(global_area); ret; } } "
+        "f:main() { maybe_cleanup(true); free(global_area); }";
+    const char* function_return_stops_unreachable_free_and_keeps_effect =
+        "v:global_area = area(64); "
+        "f:cleanup() { free(global_area); ret; free(global_area); } "
+        "f:main() { cleanup(); echo(global_area); }";
     const char* function_analysis_does_not_commit_global_relocation =
         "v:global_a = area(64); v:global_b = area(32); free(global_b); "
         "f:move() { v:moved = global_a _> global_b; } "
@@ -5570,6 +5579,8 @@ static int check_intrinsic_semantics(void) {
         check_source(conditional_function_free_is_not_unconditional, -1) &&
         check_source(function_free_on_every_exit_is_unconditional, 1) &&
         check_source(nested_conditional_function_free_stays_conditional, -1) &&
+        check_source(conditional_function_free_on_return_stays_conditional, -1) &&
+        check_source(function_return_stops_unreachable_free_and_keeps_effect, -1) &&
         check_source(function_analysis_does_not_commit_global_relocation, 0) &&
         check_source(local_allocation_cannot_escape_to_outer_binding, 1) &&
         check_source(function_local_allocation_cannot_escape_to_global, 1) &&
