@@ -13378,6 +13378,9 @@ static void semantic_check_node(
             /* ?; terminates only the currently active table/scope. */
             semantic_release_scope_allocations(
                 ctx, (uint32_t)(ctx->current_depth < 0 ? 0 : ctx->current_depth));
+            if (ctx->active_function_exit &&
+                !semantic_function_exit_record(ctx, ctx->active_function_exit))
+                semantic_set_result_error(ctx, SEMANTIC_RESULT_OUT_OF_MEMORY);
             ctx->halted_function_depth = (uint32_t)ctx->function_depth;
             ctx->control_flow_terminated = 1u;
             break;
