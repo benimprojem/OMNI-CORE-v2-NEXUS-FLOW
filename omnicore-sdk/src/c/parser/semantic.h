@@ -137,6 +137,7 @@ typedef struct ThreadBlockEntry {
 } ThreadBlockEntry;
 
 typedef struct SemanticLoopControlFrame SemanticLoopControlFrame;
+typedef struct SemanticFunctionExitFrame SemanticFunctionExitFrame;
 
 typedef struct {
     Slot* head;
@@ -206,6 +207,7 @@ typedef struct {
     uint32_t lambda_capture_base_depth;
     SemanticLoopControlFrame* active_loop;
     uint8_t control_flow_terminated;
+    SemanticFunctionExitFrame* active_function_exit;
 } SemanticContext;
 
 OCC_API void semantic_init(SemanticContext* ctx, const char* filename, const char* lang_file_path);
