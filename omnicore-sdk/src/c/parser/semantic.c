@@ -5327,14 +5327,18 @@ static uint64_t semantic_expression_allocation_identity_depth(
                     "Unsupported arithmetic/bitwise transformation of an allocation-derived address; lifetime provenance cannot be proven.");
                 return 0u;
             }
-            /* Pointer subtraction produces a numeric distance, not an alias. */
-            if (binary->op == TOKEN_MINUS && left != 0u && right != 0u)
-                return 0u;
             if (left != 0u && right != 0u && left != right) {
                 report_error(ctx, expression, ERR_SEMANTIC_TYPE_MISMATCH,
-                    "Pointer expression combines different allocation identities; its lifetime provenance is ambiguous.");
+                    binary->op == TOKEN_MINUS
+                        ? "Pointer subtraction combines different allocation identities; the distance is not defined within one allocation."
+                        : "Pointer expression combines different allocation identities; its lifetime provenance is ambiguous.");
                 return 0u;
             }
+            /* Subtracting pointers within one allocation produces a numeric
+               distance, not an alias. Cross-allocation subtraction is rejected
+               above instead of silently erasing both identities. */
+            if (binary->op == TOKEN_MINUS && left != 0u && right != 0u)
+                return 0u;
             return left != 0u ? left : right;
         }
         default:
