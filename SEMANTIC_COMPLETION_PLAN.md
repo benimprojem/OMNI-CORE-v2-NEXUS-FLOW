@@ -155,6 +155,7 @@ The order below is a dependency order. Audit results may mark an item already im
 - Nested calls propagate correlated callee alternatives into the caller's path set. Lambda and Group-method execution frames isolate their return control state from the enclosing function.
 - Regression coverage: conditional `free()+ret` versus live fallthrough, unreachable `free()` after `ret`, and transitive conditional release through a wrapper function.
 - Exact-head CI for commit `0168cc33e9f158b47c6a8609a645471afd1acea9`, run [46113634061](https://github.com/benimprojem/OMNI-CORE-v2-NEXUS-FLOW/actions/runs/46113634061), passed all five jobs: Linux, Windows, macOS, ASan/UBSan and Valgrind. Linux CTest passed 74/74.
+- Follow-up integration tests exercise a callee's conditional release alternatives immediately before loop `break` and `continue`; both preserve the maybe-released state after the loop. Exact-head commit `5495861a4d577e189c63778e104cbbba3ca82724`, run [46113823878](https://github.com/benimprojem/OMNI-CORE-v2-NEXUS-FLOW/actions/runs/46113823878), passed all five jobs; Linux CTest passed 74/74.
 - This closes the explicit-return allocation-summary regression set only; SEM-005 remains IN_PROGRESS pending the other verification items above.
 
 - Inspect: safe `&T` / `&mut T`, raw `*T`, borrow exclusivity, projection overlap, lifetime origins, initialization, nullability, escape and callback return provenance.
