@@ -5398,6 +5398,11 @@ static int check_intrinsic_semantics(void) {
     const char* allocation_loop_backedge_identity_mismatch =
         "f:main() { v:a = area(64); v:b = area(32); "
         "loop (true) { a = b; break; } echo(a); }";
+    const char* allocation_break_stops_unreachable_free =
+        "f:main() { v:a = area(64); loop (true) { break; free(a); } free(a); }";
+    const char* allocation_continue_stops_unreachable_free =
+        "f:main(cond!bool) { v:a = area(64); "
+        "loop (cond) { continue; free(a); } free(a); }";
     const char* allocation_loop_may_release_alias =
         "f:main(cond!bool) { v:a = area(64); v:alias = a; "
         "loop (cond) { free(a); break; } echo(alias); }";
@@ -5534,6 +5539,8 @@ static int check_intrinsic_semantics(void) {
         check_source(allocation_branch_live_on_all_paths, 0) &&
         check_source(allocation_branch_identity_mismatch, -1) &&
         check_source(allocation_loop_backedge_identity_mismatch, -1) &&
+        check_source(allocation_break_stops_unreachable_free, 0) &&
+        check_source(allocation_continue_stops_unreachable_free, 0) &&
         check_source(allocation_loop_may_release_alias, -1) &&
         check_source(allocation_loop_return_path_does_not_join_exit, 0) &&
         check_source(allocation_loop_continue_may_release_alias, -1) &&
