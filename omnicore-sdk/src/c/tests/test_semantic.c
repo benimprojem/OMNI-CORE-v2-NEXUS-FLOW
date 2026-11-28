@@ -5221,14 +5221,14 @@ static int check_allocation_release_diagnostic_matrix(void) {
         {
             "nt:RawI32 = *i32; struct:Box { v:pointer!RawI32 } "
             "f:main() { v:a = area(64); v:box!Box; "
-            "box.pointer = cast(addr(a),RawI32); }",
+            "box.pointer = cast(addr(a),RawI32); free(a); }",
             "Allocation-derived handles/addresses cannot be stored through member",
             "cast(addr(a),RawI32)", 0u, 1u
         },
         {
             "nt:RawI32 = *i32; "
             "f:main() { v:a = area(64); v:items[1]!RawI32; "
-            "items[0] = cast(addr(a),RawI32); }",
+            "items[0] = cast(addr(a),RawI32); free(a); }",
             "Allocation-derived handles/addresses cannot be stored through member",
             "cast(addr(a),RawI32)", 0u, 1u
         }
