@@ -11815,19 +11815,27 @@ static void semantic_check_node(
                     if (function_entry_state_captured) {
                         AllocationPathState* function_exit_paths =
                             function_exit_frame.exit_paths;
+                        int owns_function_exit_paths = 1;
                         function_exit_frame.exit_paths = NULL;
                         if (!ctx->control_flow_terminated) {
-                            AllocationPathState* merged_exit_paths = NULL;
-                            if (semantic_allocation_paths_merge(
-                                    ctx, function_exit_paths,
-                                    ctx->allocation_paths,
-                                    &merged_exit_paths)) {
-                                semantic_allocation_paths_destroy(
-                                    function_exit_paths);
-                                function_exit_paths = merged_exit_paths;
+                            if (function_exit_paths) {
+                                AllocationPathState* merged_exit_paths = NULL;
+                                if (semantic_allocation_paths_merge(
+                                        ctx, function_exit_paths,
+                                        ctx->allocation_paths,
+                                        &merged_exit_paths)) {
+                                    semantic_allocation_paths_destroy(
+                                        function_exit_paths);
+                                    function_exit_paths = merged_exit_paths;
+                                } else {
+                                    semantic_set_result_error(
+                                        ctx, SEMANTIC_RESULT_OUT_OF_MEMORY);
+                                }
                             } else {
-                                semantic_set_result_error(
-                                    ctx, SEMANTIC_RESULT_OUT_OF_MEMORY);
+                                /* No explicit return path was recorded:
+                                   the current state alone is the fallthrough. */
+                                function_exit_paths = ctx->allocation_paths;
+                                owns_function_exit_paths = 0;
                             }
                         }
                         if ((function_exit_paths ||
@@ -11839,7 +11847,9 @@ static void semantic_check_node(
                             semantic_set_result_error(
                                 ctx, SEMANTIC_RESULT_OUT_OF_MEMORY);
                         }
-                        semantic_allocation_paths_destroy(function_exit_paths);
+                        if (owns_function_exit_paths)
+                            semantic_allocation_paths_destroy(
+                                function_exit_paths);
                     }
                     semantic_allocation_paths_destroy(
                         function_exit_frame.exit_paths);
