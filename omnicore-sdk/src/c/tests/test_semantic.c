@@ -5267,11 +5267,17 @@ static int check_allocation_release_diagnostic_matrix(void) {
             error->line != 1 || error->col != expected_column ||
             !error->message ||
             !strstr(error->message, cases[index].expected_message)) {
+            Error* diagnostic;
             fprintf(stderr,
                 "Allocation release diagnostic case %llu mismatch: errors=%d expected-column=%d actual=%d message=%s\\n",
                 (unsigned long long)index, semantic.error_count,
                 expected_column, error ? error->col : 0,
                 error && error->message ? error->message : "<none>");
+            for (diagnostic = semantic.error_head; diagnostic;
+                 diagnostic = diagnostic->next)
+                fprintf(stderr, "  diagnostic %d at %d:%d: %s\\n",
+                    diagnostic->code, diagnostic->line, diagnostic->col,
+                    diagnostic->message ? diagnostic->message : "<none>");
             semantic_destroy(&semantic);
             parser_destroy(parser);
             return 0;
