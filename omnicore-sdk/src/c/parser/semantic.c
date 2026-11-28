@@ -5339,6 +5339,12 @@ static uint64_t semantic_expression_allocation_identity_depth(
                above instead of silently erasing both identities. */
             if (binary->op == TOKEN_MINUS && left != 0u && right != 0u)
                 return 0u;
+            if (left == 0u && right != 0u &&
+                binary->op == TOKEN_MINUS) {
+                report_error(ctx, expression, ERR_SEMANTIC_TYPE_MISMATCH,
+                    "Integer-minus-pointer arithmetic is not a valid allocation-preserving operation.");
+                return 0u;
+            }
             return left != 0u ? left : right;
         }
         default:
