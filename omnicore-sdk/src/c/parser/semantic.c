@@ -39,6 +39,8 @@ void semantic_init(SemanticContext* ctx, const char* filename, const char* lang_
     ctx->halted_function_depth = UINT32_MAX;
     ctx->loop_depth = 0u;
     ctx->function_depth = 0u;
+    ctx->active_loop = NULL;
+    ctx->control_flow_terminated = 0u;
     ctx->current_function_slot = NULL;
     ctx->current_func_return_type = NULL;
     ctx->diagnostics = NULL;
@@ -2106,6 +2108,14 @@ typedef struct SemanticReferenceInitSnapshot {
     uint8_t consumed;
 } SemanticReferenceInitSnapshot;
 
+struct SemanticLoopControlFrame {
+    SemanticReferenceInitSnapshot break_state;
+    SemanticReferenceInitSnapshot continue_state;
+    struct SemanticLoopControlFrame* parent;
+    uint8_t has_break;
+    uint8_t has_continue;
+};
+
 /* Safe-reference bindings are usable only after a valid initializer or
    assignment. Branch snapshots implement a conservative must-initialize
    merge: a binding is initialized after an if only when every path is. */
@@ -2766,6 +2776,29 @@ static int semantic_function_statement_terminates(const ASTNode* node) {
     return 0;
 }
 
+static int semantic_loop_record_control_path(
+    SemanticContext* ctx, SemanticLoopControlFrame* frame, int is_break
+) {
+    SemanticReferenceInitSnapshot captured = {0};
+    SemanticReferenceInitSnapshot* destination;
+    uint8_t* has_path;
+    if (!ctx || !frame) return 0;
+    destination = is_break ? &frame->break_state : &frame->continue_state;
+    has_path = is_break ? &frame->has_break : &frame->has_continue;
+    if (!semantic_reference_init_snapshot_capture(ctx, &captured)) return 0;
+    if (*has_path) {
+        if (!semantic_reference_init_snapshot_merge(ctx, destination, &captured)) {
+            semantic_reference_init_snapshot_destroy(&captured);
+            return 0;
+        }
+        semantic_reference_init_snapshot_destroy(&captured);
+    } else {
+        *destination = captured;
+        *has_path = 1u;
+    }
+    return 1;
+}
+
 static int semantic_branch_terminates_flow(const ASTNode* branch) {
     const ASTNode* statement;
     if (!branch) return 0;
@@ -2782,7 +2815,9 @@ static int semantic_branch_terminates_flow(const ASTNode* branch) {
        function path ends just like a direct table halt or return. */
     if (branch->type == AST_RETURN ||
         branch->type == AST_BLOCK_HALT ||
-        branch->type == AST_NEXUS_HALT) return 1;
+        branch->type == AST_NEXUS_HALT ||
+        branch->type == AST_BREAK ||
+        branch->type == AST_CONTINUE) return 1;
     if (branch->type == AST_IF) {
         const ASTIf* conditional = (const ASTIf*)branch;
         return conditional->else_branch &&
@@ -11809,6 +11844,7 @@ static void semantic_check_node(
             int else_captured = 0;
             int then_terminates = 0;
             int else_terminates = 0;
+            uint8_t prior_control_terminated = ctx->control_flow_terminated;
             if (!conditional->condition) {
                 report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH,
                     "if statement is missing its condition expression.");
@@ -11826,6 +11862,7 @@ static void semantic_check_node(
                 ctx, &before_state);
             semantic_refine_nullable_binding_from_condition(
                 ctx, conditional->condition, 1);
+            ctx->control_flow_terminated = 0u;
             if (conditional->then_branch) {
                 if (conditional->then_branch->type == AST_BLOCK) {
                     semantic_check(ctx, conditional->then_branch);
@@ -11838,8 +11875,9 @@ static void semantic_check_node(
             if (before_captured)
                 then_captured = semantic_reference_init_snapshot_capture(
                     ctx, &then_state);
-            then_terminates = semantic_branch_terminates_flow(
-                conditional->then_branch);
+            then_terminates = ctx->control_flow_terminated ||
+                semantic_branch_terminates_flow(conditional->then_branch);
+            ctx->control_flow_terminated = 0u;
             if (before_captured)
                 semantic_reference_init_snapshot_restore(ctx, &before_state);
             semantic_refine_nullable_binding_from_condition(
@@ -11855,8 +11893,8 @@ static void semantic_check_node(
                 if (before_captured)
                     else_captured = semantic_reference_init_snapshot_capture(
                         ctx, &else_state);
-                else_terminates = semantic_branch_terminates_flow(
-                    conditional->else_branch);
+                else_terminates = ctx->control_flow_terminated ||
+                    semantic_branch_terminates_flow(conditional->else_branch);
                 if (before_captured && then_captured && else_captured) {
                     if (then_terminates && !else_terminates)
                         semantic_reference_init_snapshot_restore(ctx, &else_state);
@@ -11902,6 +11940,8 @@ static void semantic_check_node(
             semantic_reference_init_snapshot_destroy(&before_state);
             semantic_reference_init_snapshot_destroy(&then_state);
             semantic_reference_init_snapshot_destroy(&else_state);
+            ctx->control_flow_terminated = (uint8_t)(prior_control_terminated ||
+                (conditional->else_branch && then_terminates && else_terminates));
             break;
         }
 
@@ -11912,12 +11952,19 @@ static void semantic_check_node(
                     node->type == AST_BREAK
                         ? "break may only be used inside a loop."
                         : "continue may only be used inside a loop.");
+            } else if (ctx->active_loop) {
+                const int is_break = node->type == AST_BREAK;
+                if (!semantic_loop_record_control_path(
+                        ctx, ctx->active_loop, is_break))
+                    semantic_set_result_error(ctx, SEMANTIC_RESULT_OUT_OF_MEMORY);
+                ctx->control_flow_terminated = 1u;
             }
             break;
 
         case AST_BLOCK: {
             ASTBlock* block = (ASTBlock*)node;
             ASTNode* last_statement = block->statements;
+            ASTNode* statement;
             int explicitly_halted = 0;
             while (last_statement && last_statement->next)
                 last_statement = last_statement->next;
@@ -11926,7 +11973,9 @@ static void semantic_check_node(
             explicitly_halted = last_statement &&
                 last_statement->type == AST_BLOCK_HALT;
             enter_scope(ctx, node);
-            semantic_check(ctx, block->statements);
+            for (statement = block->statements; statement &&
+                 !ctx->control_flow_terminated; statement = statement->next)
+                semantic_check_node(ctx, statement, 0);
             exit_scope_internal(ctx, explicitly_halted);
             break;
         }
@@ -13130,39 +13179,56 @@ static void semantic_check_node(
             {
                 SemanticReferenceInitSnapshot before_body = {0};
                 SemanticReferenceInitSnapshot after_body = {0};
+                SemanticLoopControlFrame loop_frame = {0};
+                SemanticLoopControlFrame* previous_loop = ctx->active_loop;
+                uint8_t previous_termination = ctx->control_flow_terminated;
                 int captured = semantic_reference_init_snapshot_capture(
                     ctx, &before_body);
                 int after_captured = 0;
-                int body_terminates = semantic_branch_terminates_flow(
-                    loop->body);
+                int body_terminates = semantic_branch_terminates_flow(loop->body);
                 int infinite_body_exits =
                     semantic_branch_exits_loop_or_function(loop->body);
                 int terminal_body_releases_outer = 0;
+                loop_frame.parent = previous_loop;
+                ctx->active_loop = &loop_frame;
+                ctx->control_flow_terminated = 0u;
                 if (loop->body) semantic_check(ctx, loop->body);
-                /* A conditional loop may execute zero times. If every body
-                   path returns or halts, its body state is not a loop-exit
-                   state; only the incoming zero-iteration path continues,
-                   unless the terminal path also changes an outer allocation
-                   effect that must remain visible in the function summary. */
                 if (captured)
                     after_captured = semantic_reference_init_snapshot_capture(
                         ctx, &after_body);
+                ctx->active_loop = previous_loop;
+                ctx->control_flow_terminated = previous_termination;
+                if (captured && after_captured && loop_frame.has_continue) {
+                    if (!semantic_reference_init_snapshot_merge(
+                            ctx, &after_body, &loop_frame.continue_state))
+                        after_captured = 0;
+                }
                 if (captured && after_captured && body_terminates &&
                     loop->loop_type != 0)
                     terminal_body_releases_outer =
                         semantic_snapshot_has_outer_allocation_release(
                             ctx, &before_body, &after_body);
                 if (captured && after_captured) {
-                    /* An infinite loop has no zero-iteration exit. If every
-                       body path breaks or terminates the function, its
-                       post-state consists only of the captured exit paths. */
-                    if (loop->loop_type == 0 && infinite_body_exits) {
-                        semantic_reference_init_snapshot_restore(
-                            ctx, &after_body);
-                    } else if (body_terminates && loop->loop_type != 0 &&
-                        !terminal_body_releases_outer) {
-                        semantic_reference_init_snapshot_restore(
-                            ctx, &before_body);
+                    if (loop->loop_type == 0) {
+                        if (loop_frame.has_break) {
+                            semantic_reference_init_snapshot_restore(
+                                ctx, &loop_frame.break_state);
+                        } else if (infinite_body_exits) {
+                            semantic_reference_init_snapshot_restore(
+                                ctx, &after_body);
+                        } else {
+                            ctx->control_flow_terminated = 1u;
+                        }
+                    } else if (loop_frame.has_break) {
+                        if (semantic_reference_init_snapshot_merge(
+                                ctx, &after_body, &loop_frame.break_state) &&
+                            semantic_reference_init_snapshot_merge(
+                                ctx, &after_body, &before_body))
+                            semantic_reference_init_snapshot_restore(ctx, &after_body);
+                        else
+                            semantic_reference_init_snapshot_restore(ctx, &before_body);
+                    } else if (body_terminates && !terminal_body_releases_outer) {
+                        semantic_reference_init_snapshot_restore(ctx, &before_body);
                     } else if (semantic_reference_init_snapshot_merge(
                             ctx, &after_body, &before_body)) {
                         semantic_reference_init_snapshot_restore(ctx, &after_body);
@@ -13174,6 +13240,8 @@ static void semantic_check_node(
                 }
                 semantic_reference_init_snapshot_destroy(&before_body);
                 semantic_reference_init_snapshot_destroy(&after_body);
+                semantic_reference_init_snapshot_destroy(&loop_frame.break_state);
+                semantic_reference_init_snapshot_destroy(&loop_frame.continue_state);
             }
             if (ctx->loop_depth > 0u) --ctx->loop_depth;
             exit_scope(ctx);
