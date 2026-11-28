@@ -11569,7 +11569,9 @@ static void semantic_check_node(
 
             const char* prev_return_type = ctx->current_func_return_type;
             unsigned int prev_loop_depth = ctx->loop_depth;
+            uint8_t prev_control_flow_terminated = ctx->control_flow_terminated;
             ctx->loop_depth = 0u;
+            ctx->control_flow_terminated = 0u;
             /* Suppress dependent return-value mismatches when the declared
              * return type already failed validation. */
             ctx->current_func_return_type =
@@ -11831,6 +11833,7 @@ static void semantic_check_node(
             exit_scope(ctx);
             ctx->current_func_return_type = prev_return_type;
             ctx->loop_depth = prev_loop_depth;
+            ctx->control_flow_terminated = prev_control_flow_terminated;
             break;
         }
 
@@ -13686,11 +13689,13 @@ static void semantic_check_node(
             uint32_t previous_receiver_type_id = ctx->current_method_receiver_type_id;
             uint8_t previous_method_context = ctx->current_method_context;
             uint8_t previous_method_is_object = ctx->current_method_is_object;
+            uint8_t previous_control_flow_terminated = ctx->control_flow_terminated;
             SemanticReferenceInitSnapshot method_entry_state = {0};
             int method_entry_state_captured = 0;
             Slot* receiver_slot = NULL;
 
             ctx->current_method_context = 1u;
+            ctx->control_flow_terminated = 0u;
             ctx->current_method_public_name = m->public_name;
             ctx->current_method_is_object = 0u;
             ctx->current_method_receiver_type = NULL;
@@ -13743,6 +13748,7 @@ static void semantic_check_node(
             ctx->current_method_context = previous_method_context;
             ctx->current_method_public_name = previous_method_public_name;
             ctx->current_method_is_object = previous_method_is_object;
+            ctx->control_flow_terminated = previous_control_flow_terminated;
             break;
         }
 
