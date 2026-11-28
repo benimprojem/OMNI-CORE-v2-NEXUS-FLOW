@@ -11278,11 +11278,17 @@ static void semantic_check_node(
             uint32_t enclosing_lambda_depth=ctx->lambda_depth;
             uint32_t enclosing_capture_base_depth=
                 ctx->lambda_capture_base_depth;
+            uint8_t enclosing_control_flow_terminated =
+                ctx->control_flow_terminated;
+            SemanticFunctionExitFrame* enclosing_function_exit =
+                ctx->active_function_exit;
             ctx->current_func_return_type=NULL;
             ctx->lambda_capture_base_depth=(uint32_t)ctx->current_depth;
             ctx->lambda_depth=enclosing_lambda_depth+1u;
             /* A lambda is an independent execution frame. Its ret must not
-               release allocations owned by the enclosing function. */
+               terminate or contribute an exit to the enclosing function. */
+            ctx->control_flow_terminated=0u;
+            ctx->active_function_exit=NULL;
             ++ctx->function_depth;
             enter_scope(ctx,node);
             semantic_check(ctx,lambda->params);
@@ -11296,6 +11302,8 @@ static void semantic_check_node(
             ctx->lambda_depth=enclosing_lambda_depth;
             ctx->lambda_capture_base_depth=enclosing_capture_base_depth;
             ctx->current_func_return_type=enclosing_return_type;
+            ctx->active_function_exit=enclosing_function_exit;
+            ctx->control_flow_terminated=enclosing_control_flow_terminated;
             semantic_record_annotation(ctx,node,NULL,"any",
                 SEMANTIC_RESULT_VALUE_RVALUE);
             break;
