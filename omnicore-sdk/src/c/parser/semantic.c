@@ -10516,6 +10516,20 @@ static void semantic_check_node(
                 (assign->left->type == AST_MEMBER_ACCESS ||
                  assign->left->type == AST_INDEX_ACCESS ||
                  (assign->left->type == AST_UNARY_EXPR &&
+                  ((ASTUnaryExpr*)assign->left)->op == TOKEN_STAR)) &&
+                semantic_expression_contains_allocation_handle(
+                    ctx, assign->right)) {
+                report_issue(ctx, assign->right, ERR_SEMANTIC_TYPE_MISMATCH,
+                    "Allocation-derived handles/addresses cannot be stored through member, index, or pointer-dereference targets because per-field/per-element allocation identity tracking is unavailable.",
+                    "Keep allocation-derived handles in direct bindings until aggregate and indirect-storage provenance is explicitly supported.",
+                    "Keep allocation-derived handles in direct bindings until aggregate and indirect-storage provenance is explicitly supported.",
+                    0, 0);
+            }
+            if ((assign->op == TOKEN_ASSIGN ||
+                 assign->op == TOKEN_FORCE_ASSIGN) &&
+                (assign->left->type == AST_MEMBER_ACCESS ||
+                 assign->left->type == AST_INDEX_ACCESS ||
+                 (assign->left->type == AST_UNARY_EXPR &&
                   ((ASTUnaryExpr*)assign->left)->op == TOKEN_STAR))) {
                 const char* stored_type = get_expr_type(ctx, assign->right);
                 const char* target_type = get_expr_type(ctx, assign->left);
