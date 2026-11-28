@@ -41,6 +41,7 @@ void semantic_init(SemanticContext* ctx, const char* filename, const char* lang_
     ctx->function_depth = 0u;
     ctx->active_loop = NULL;
     ctx->control_flow_terminated = 0u;
+    ctx->active_function_exit = NULL;
     ctx->current_function_slot = NULL;
     ctx->current_func_return_type = NULL;
     ctx->diagnostics = NULL;
@@ -2114,6 +2115,11 @@ struct SemanticLoopControlFrame {
     struct SemanticLoopControlFrame* parent;
     uint8_t has_break;
     uint8_t has_continue;
+};
+
+struct SemanticFunctionExitFrame {
+    AllocationPathState* exit_paths;
+    struct SemanticFunctionExitFrame* parent;
 };
 
 /* Safe-reference bindings are usable only after a valid initializer or
@@ -7032,18 +7038,32 @@ static int semantic_function_allocation_alternative_add_effect(
     return 1;
 }
 
+static int semantic_function_exit_record(
+    SemanticContext* ctx, SemanticFunctionExitFrame* frame
+) {
+    AllocationPathState* merged = NULL;
+    if (!ctx || !frame ||
+        !semantic_allocation_paths_merge(
+            ctx, frame->exit_paths, ctx->allocation_paths, &merged))
+        return 0;
+    semantic_allocation_paths_destroy(frame->exit_paths);
+    frame->exit_paths = merged;
+    return 1;
+}
+
 static int semantic_capture_function_allocation_alternatives(
     SemanticContext* ctx, Slot* function_slot,
-    const AllocationPathState* entry_paths
+    const AllocationPathState* entry_paths,
+    const AllocationPathState* exit_paths
 ) {
     const AllocationPathState* exit_path;
     SemanticFunctionAllocationAlternative* head = NULL;
     SemanticFunctionAllocationAlternative* tail = NULL;
     if (!ctx || !function_slot) return 0;
 
-    /* Allocation tracking is lazy. A function analyzed before any allocation
-       still has one feasible, effect-free return alternative. */
-    if (!ctx->allocation_paths) {
+    /* A function with no allocation-tracked exits still has one feasible,
+       effect-free return alternative. */
+    if (!exit_paths) {
         head = (SemanticFunctionAllocationAlternative*)semantic_callocate(
             ctx, 1u, sizeof(*head));
         if (!head) {
@@ -7056,7 +7076,7 @@ static int semantic_capture_function_allocation_alternatives(
         return 1;
     }
 
-    for (exit_path = ctx->allocation_paths; exit_path;
+    for (exit_path = exit_paths; exit_path;
          exit_path = exit_path->next) {
         SemanticFunctionAllocationAlternative* alternative =
             (SemanticFunctionAllocationAlternative*)semantic_callocate(
@@ -11779,21 +11799,50 @@ static void semantic_check_node(
                 if (func->body) {
                     /* A declaration is analyzed, not executed. Preserve the
                        caller/global allocation state across its body analysis. */
+                    SemanticFunctionExitFrame function_exit_frame = {0};
+                    SemanticFunctionExitFrame* previous_function_exit =
+                        ctx->active_function_exit;
                     function_entry_state_captured =
                         semantic_reference_init_snapshot_capture(
                             ctx, &function_entry_state);
+                    function_exit_frame.parent = previous_function_exit;
+                    ctx->active_function_exit = &function_exit_frame;
                     ctx->current_function_slot = function_slot;
                     ++ctx->function_depth;
                     semantic_check(ctx, func->body);
-                    /* Capture complete correlated release sets from each
-                       feasible function exit before restoring the caller state. */
-                    if (function_entry_state_captured &&
-                        !semantic_capture_function_allocation_alternatives(
-                            ctx, function_slot,
-                            function_entry_state.allocation_paths)) {
-                        semantic_set_result_error(
-                            ctx, SEMANTIC_RESULT_OUT_OF_MEMORY);
+                    /* A normal fallthrough is an exit alongside every
+                       explicit ret path captured while analyzing the body. */
+                    if (function_entry_state_captured) {
+                        AllocationPathState* function_exit_paths =
+                            function_exit_frame.exit_paths;
+                        if (!ctx->control_flow_terminated) {
+                            AllocationPathState* merged_exit_paths = NULL;
+                            if (semantic_allocation_paths_merge(
+                                    ctx, function_exit_paths,
+                                    ctx->allocation_paths,
+                                    &merged_exit_paths)) {
+                                semantic_allocation_paths_destroy(
+                                    function_exit_paths);
+                                function_exit_paths = merged_exit_paths;
+                            } else {
+                                semantic_set_result_error(
+                                    ctx, SEMANTIC_RESULT_OUT_OF_MEMORY);
+                            }
+                        }
+                        if ((function_exit_paths ||
+                             !ctx->control_flow_terminated) &&
+                            !semantic_capture_function_allocation_alternatives(
+                                ctx, function_slot,
+                                function_entry_state.allocation_paths,
+                                function_exit_paths)) {
+                            semantic_set_result_error(
+                                ctx, SEMANTIC_RESULT_OUT_OF_MEMORY);
+                        }
+                        semantic_allocation_paths_destroy(function_exit_paths);
                     }
+                    semantic_allocation_paths_destroy(
+                        function_exit_frame.exit_paths);
+                    ctx->active_function_exit = previous_function_exit;
                     /* Function-local allocations cannot outlive the call frame,
                        even when the body reaches its closing brace normally. */
                     semantic_release_function_allocations(
@@ -12069,10 +12118,15 @@ static void semantic_check_node(
                that are still owned by this function on this path. Check after
                return-value provenance validation, then discard this path's
                function-local allocation state for branch-flow restoration. */
+            if (ctx->active_function_exit &&
+                !semantic_function_exit_record(
+                    ctx, ctx->active_function_exit))
+                semantic_set_result_error(ctx, SEMANTIC_RESULT_OUT_OF_MEMORY);
             semantic_check_function_allocations_closed(
                 ctx, (uint32_t)ctx->function_depth);
             semantic_release_function_allocations(
                 ctx, (uint32_t)ctx->function_depth);
+            ctx->control_flow_terminated = 1u;
             break;
         }
 
