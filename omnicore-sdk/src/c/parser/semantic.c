@@ -11815,6 +11815,7 @@ static void semantic_check_node(
                     if (function_entry_state_captured) {
                         AllocationPathState* function_exit_paths =
                             function_exit_frame.exit_paths;
+                        function_exit_frame.exit_paths = NULL;
                         if (!ctx->control_flow_terminated) {
                             AllocationPathState* merged_exit_paths = NULL;
                             if (semantic_allocation_paths_merge(
