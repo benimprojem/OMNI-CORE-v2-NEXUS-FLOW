@@ -5339,6 +5339,14 @@ static int check_intrinsic_semantics(void) {
         "v:a = area(64); v:b = area(64); "
         "v:p!RawI32 = cast(addr(a),RawI32); "
         "v:q!RawI32 = cast(addr(b),RawI32); v:distance = p - q; }";
+    const char* allocation_integer_plus_pointer_alias_use_after_free =
+        "f:main() { v:a = area(64); v:p = addr(a); v:q = 4 + p; "
+        "free(a); echo(q); }";
+    const char* allocation_pointer_minus_integer_alias_use_after_free =
+        "f:main() { v:a = area(64); v:p = addr(a); v:q = p - 4; "
+        "free(a); echo(q); }";
+    const char* allocation_integer_minus_pointer_rejected =
+        "f:main() { v:a = area(64); v:p = addr(a); v:q = 4 - p; }";
     const char* allocation_address_unsupported_transform_rejected =
         "f:main() { v:a = area(64); v:p = addr(a); v:q = p * 1; "
         "free(a); echo(q); }";
@@ -5614,6 +5622,9 @@ static int check_intrinsic_semantics(void) {
         check_source(allocation_pointer_difference_is_plain_value, 0) &&
         check_source(allocation_pointer_addition_mixed_identities_rejected, -1) &&
         check_source(allocation_pointer_subtraction_mixed_identities_rejected, -1) &&
+        check_source(allocation_integer_plus_pointer_alias_use_after_free, 1) &&
+        check_source(allocation_pointer_minus_integer_alias_use_after_free, 1) &&
+        check_source(allocation_integer_minus_pointer_rejected, -1) &&
         check_source(allocation_address_unsupported_transform_rejected, 1) &&
         check_source(allocation_pointer_cast_alias_use_after_free, 1) &&
         check_source(allocation_pointer_cast_base_handle_release, 0) &&
