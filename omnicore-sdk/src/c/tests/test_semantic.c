@@ -5494,6 +5494,16 @@ static int check_intrinsic_semantics(void) {
         "v:global_area = area(64); "
         "f:cleanup() { free(global_area); ret; free(global_area); } "
         "f:main() { cleanup(); echo(global_area); }";
+    const char* conditional_function_free_on_halt_stays_conditional =
+        "v:global_area = area(64); "
+        "f:maybe_cleanup(cond!bool) { "
+        "if (cond) { free(global_area); ?; } } "
+        "f:main() { maybe_cleanup(true); free(global_area); }";
+    const char* conditional_function_free_on_block_halt_stays_conditional =
+        "v:global_area = area(64); "
+        "f:maybe_cleanup(cond!bool) { "
+        "if (cond) { free(global_area); }?; } "
+        "f:main() { maybe_cleanup(true); free(global_area); }";
     const char* nested_function_return_effect_stays_conditional =
         "v:global_area = area(64); "
         "f:maybe_cleanup(cond!bool) { "
@@ -5601,6 +5611,8 @@ static int check_intrinsic_semantics(void) {
         check_source(nested_conditional_function_free_stays_conditional, -1) &&
         check_source(conditional_function_free_on_return_stays_conditional, -1) &&
         check_source(function_return_stops_unreachable_free_and_keeps_effect, -1) &&
+        check_source(conditional_function_free_on_halt_stays_conditional, -1) &&
+        check_source(conditional_function_free_on_block_halt_stays_conditional, -1) &&
         check_source(nested_function_return_effect_stays_conditional, -1) &&
         check_source(function_analysis_does_not_commit_global_relocation, 0) &&
         check_source(local_allocation_cannot_escape_to_outer_binding, 1) &&
