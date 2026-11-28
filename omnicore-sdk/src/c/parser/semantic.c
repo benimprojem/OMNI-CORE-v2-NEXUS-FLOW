@@ -11922,6 +11922,7 @@ static void semantic_check_node(
             int then_terminates = 0;
             int else_terminates = 0;
             uint8_t prior_control_terminated = ctx->control_flow_terminated;
+            uint32_t prior_halted_function_depth = ctx->halted_function_depth;
             if (!conditional->condition) {
                 report_error(ctx, node, ERR_SEMANTIC_TYPE_MISMATCH,
                     "if statement is missing its condition expression.");
@@ -11953,8 +11954,10 @@ static void semantic_check_node(
                 then_captured = semantic_reference_init_snapshot_capture(
                     ctx, &then_state);
             then_terminates = ctx->control_flow_terminated ||
+                ctx->halted_function_depth == (uint32_t)ctx->function_depth ||
                 semantic_branch_terminates_flow(conditional->then_branch);
             ctx->control_flow_terminated = 0u;
+            ctx->halted_function_depth = prior_halted_function_depth;
             if (before_captured)
                 semantic_reference_init_snapshot_restore(ctx, &before_state);
             semantic_refine_nullable_binding_from_condition(
@@ -11971,6 +11974,7 @@ static void semantic_check_node(
                     else_captured = semantic_reference_init_snapshot_capture(
                         ctx, &else_state);
                 else_terminates = ctx->control_flow_terminated ||
+                    ctx->halted_function_depth == (uint32_t)ctx->function_depth ||
                     semantic_branch_terminates_flow(conditional->else_branch);
                 if (before_captured && then_captured && else_captured) {
                     if (then_terminates && !else_terminates)
@@ -12019,6 +12023,7 @@ static void semantic_check_node(
             semantic_reference_init_snapshot_destroy(&else_state);
             ctx->control_flow_terminated = (uint8_t)(prior_control_terminated ||
                 (conditional->else_branch && then_terminates && else_terminates));
+            ctx->halted_function_depth = prior_halted_function_depth;
             break;
         }
 
@@ -12054,6 +12059,10 @@ static void semantic_check_node(
                  !ctx->control_flow_terminated; statement = statement->next)
                 semantic_check_node(ctx, statement, 0);
             exit_scope_internal(ctx, explicitly_halted);
+            if (ctx->halted_function_depth == (uint32_t)ctx->function_depth &&
+                ctx->active_function_exit &&
+                !semantic_function_exit_record(ctx, ctx->active_function_exit))
+                semantic_set_result_error(ctx, SEMANTIC_RESULT_OUT_OF_MEMORY);
             break;
         }
 
@@ -12063,6 +12072,7 @@ static void semantic_check_node(
             semantic_record_annotation(
                 ctx, node, NULL, "void", SEMANTIC_RESULT_VALUE_RVALUE);
             ctx->halted_function_depth = (uint32_t)ctx->function_depth;
+            ctx->control_flow_terminated = 1u;
             break;
 
         case AST_RETURN: {
@@ -13369,6 +13379,7 @@ static void semantic_check_node(
             semantic_release_scope_allocations(
                 ctx, (uint32_t)(ctx->current_depth < 0 ? 0 : ctx->current_depth));
             ctx->halted_function_depth = (uint32_t)ctx->function_depth;
+            ctx->control_flow_terminated = 1u;
             break;
         }
 
