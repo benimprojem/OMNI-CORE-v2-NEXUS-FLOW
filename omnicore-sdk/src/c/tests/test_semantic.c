@@ -5349,6 +5349,14 @@ static int check_intrinsic_semantics(void) {
         "nt:RawI32 = *i32; "
         "f:main() { v:a = area(64); v:items[1]!RawI32; "
         "items[0] = cast(addr(a),RawI32); }";
+    const char* allocation_derived_pointer_cannot_be_initialized_in_aggregate =
+        "nt:RawI32 = *i32; struct:Box { v:pointer!RawI32 } "
+        "f:main() { v:a = area(64); "
+        "v:box!Box = Box { pointer = cast(addr(a),RawI32) }; }";
+    const char* allocation_derived_pointer_cannot_be_initialized_in_array =
+        "nt:RawI32 = *i32; "
+        "f:main() { v:a = area(64); "
+        "v:items = [cast(addr(a),RawI32)]; }";
     const char* allocation_scope_exit_without_release_rejected =
         "f:main() { v:a = area(64); }";
     const char* allocation_nested_scope_exit_without_release_rejected =
@@ -5592,6 +5600,8 @@ static int check_intrinsic_semantics(void) {
         check_source(allocation_pointer_cast_interior_release_rejected, 1) &&
         check_source(allocation_derived_pointer_cannot_be_stored_in_member, -1) &&
         check_source(allocation_derived_pointer_cannot_be_stored_in_index, -1) &&
+        check_source(allocation_derived_pointer_cannot_be_initialized_in_aggregate, -1) &&
+        check_source(allocation_derived_pointer_cannot_be_initialized_in_array, -1) &&
         check_source(allocation_scope_exit_without_release_rejected, 1) &&
         check_source(allocation_nested_scope_exit_without_release_rejected, 1) &&
         check_source(allocation_scope_halt_releases_current_scope, 0) &&
