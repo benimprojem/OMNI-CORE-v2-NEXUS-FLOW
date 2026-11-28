@@ -5620,11 +5620,11 @@ static int check_intrinsic_semantics(void) {
         check_source(allocation_reassignment_restores_base_alias, 0) &&
         check_source(allocation_interior_address_cannot_be_freed, 1) &&
         check_source(allocation_pointer_difference_is_plain_value, 0) &&
-        check_source(allocation_pointer_addition_mixed_identities_rejected, -1) &&
-        check_source(allocation_pointer_subtraction_mixed_identities_rejected, -1) &&
+        check_source(allocation_pointer_addition_mixed_identities_rejected, 1) &&
+        check_source(allocation_pointer_subtraction_mixed_identities_rejected, 1) &&
         check_source(allocation_integer_plus_pointer_alias_use_after_free, 1) &&
         check_source(allocation_pointer_minus_integer_alias_use_after_free, 1) &&
-        check_source(allocation_integer_minus_pointer_rejected, -1) &&
+        check_source(allocation_integer_minus_pointer_rejected, 1) &&
         check_source(allocation_address_unsupported_transform_rejected, 1) &&
         check_source(allocation_pointer_cast_alias_use_after_free, 1) &&
         check_source(allocation_pointer_cast_base_handle_release, 0) &&
