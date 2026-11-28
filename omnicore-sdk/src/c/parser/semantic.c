@@ -7042,10 +7042,16 @@ static int semantic_function_exit_record(
     SemanticContext* ctx, SemanticFunctionExitFrame* frame
 ) {
     AllocationPathState* merged = NULL;
-    if (!ctx || !frame ||
-        !semantic_allocation_paths_merge(
-            ctx, frame->exit_paths, ctx->allocation_paths, &merged))
+    if (!ctx || !frame) return 0;
+    if (!frame->exit_paths) {
+        /* The first recorded exit is a copy of the current feasible states;
+           NULL here is not an additional empty alternative. */
+        if (!semantic_allocation_paths_clone(
+                ctx, ctx->allocation_paths, &merged)) return 0;
+    } else if (!semantic_allocation_paths_merge(
+                   ctx, frame->exit_paths, ctx->allocation_paths, &merged)) {
         return 0;
+    }
     semantic_allocation_paths_destroy(frame->exit_paths);
     frame->exit_paths = merged;
     return 1;
